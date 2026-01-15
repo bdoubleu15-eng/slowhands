@@ -90,9 +90,47 @@ function getLanguageFromPath(filePath: string): string {
 
 // Streaming state
 let isStreaming = false;
+let isPaused = false;
 let streamingAbortController: AbortController | null = null;
 let streamingFilePath: string | null = null;
 let pendingStreamContent: string | null = null;
+let currentStreamingContent: string | null = null; // Full content being streamed
+
+// Pause/resume streaming
+function togglePause(): void {
+  if (!isStreaming) return;
+  isPaused = !isPaused;
+  updatePauseButton();
+  if (isPaused) {
+    addOutputLine('⏸ Paused streaming');
+  } else {
+    addOutputLine('▶ Resumed streaming');
+  }
+}
+
+function pauseStreaming(): void {
+  if (isStreaming && !isPaused) {
+    isPaused = true;
+    updatePauseButton();
+    addOutputLine('⏸ Paused streaming');
+  }
+}
+
+function resumeStreaming(): void {
+  if (isStreaming && isPaused) {
+    isPaused = false;
+    updatePauseButton();
+    addOutputLine('▶ Resumed streaming');
+  }
+}
+
+function updatePauseButton(): void {
+  const pauseBtn = document.getElementById('pause-btn');
+  if (pauseBtn) {
+    pauseBtn.textContent = isPaused ? '▶' : '⏸';
+    pauseBtn.title = isPaused ? 'Resume streaming (Space)' : 'Pause streaming (Space)';
+  }
+}
 
 // Update editor with file content (instant)
 function updateEditorWithFile(filePath: string, content: string) {
@@ -143,16 +181,28 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
   updateFileNameDisplay(filePath);
   
   isStreaming = true;
+  isPaused = false;
   pendingStreamContent = null;
+  currentStreamingContent = content; // Save full content for skip functionality
+  updatePauseButton();
   const delayMs = 1000 / charsPerSecond;
   let currentContent = '';
   
   // Stream character by character
   for (let i = 0; i < content.length; i++) {
+    // Check for abort
     if (signal.aborted) {
       console.log('Stream aborted');
       break;
     }
+    
+    // Wait while paused (check every 100ms)
+    while (isPaused && !signal.aborted) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Check abort again after pause
+    if (signal.aborted) break;
     
     currentContent += content[i];
     editor.setValue(currentContent);
@@ -175,8 +225,12 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
     await new Promise(resolve => setTimeout(resolve, charDelay));
   }
   
+  // Reset state when streaming ends
+  isPaused = false;
   isStreaming = false;
   streamingFilePath = null;
+  currentStreamingContent = null;
+  updatePauseButton();
   console.log(`Finished streaming: ${filePath}`);
   
   // If there's pending content (newer version of file), show it instantly
@@ -187,20 +241,29 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
   }
 }
 
-// Stop current streaming
+// Stop current streaming and show full content
 function stopStreaming() {
   if (streamingAbortController) {
     streamingAbortController.abort();
     streamingAbortController = null;
   }
-  isStreaming = false;
-  streamingFilePath = null;
   
-  // Show pending content if any
+  // Show full content when skipped
+  if (currentStreamingContent !== null) {
+    editor.setValue(currentStreamingContent);
+    currentStreamingContent = null;
+  }
+  
+  // Show pending content if any (newer version)
   if (pendingStreamContent !== null) {
     editor.setValue(pendingStreamContent);
     pendingStreamContent = null;
   }
+  
+  isStreaming = false;
+  isPaused = false;
+  streamingFilePath = null;
+  updatePauseButton();
 }
 
 // Update the filename in the title bar or status
@@ -742,9 +805,36 @@ setInterval(() => {
 // Keyboard Shortcuts
 // ============================================
 document.addEventListener('keydown', (e) => {
-  // Escape - stop streaming (show full content instantly)
+  // Don't intercept if typing in input field
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    return;
+  }
+  
+  // Space - pause/resume streaming
+  if (e.key === ' ' && isStreaming) {
+    e.preventDefault();
+    togglePause();
+  }
+  
+  // Escape - skip streaming (show full content instantly)
   if (e.key === 'Escape' && isStreaming) {
     stopStreaming();
-    addOutputLine('⏭ Skipped streaming');
+    addOutputLine('⏭ Skipped to end');
+  }
+});
+
+// ============================================
+// Toolbar Button Handlers
+// ============================================
+document.getElementById('pause-btn')?.addEventListener('click', () => {
+  if (isStreaming) {
+    togglePause();
+  }
+});
+
+document.getElementById('skip-btn')?.addEventListener('click', () => {
+  if (isStreaming) {
+    stopStreaming();
+    addOutputLine('⏭ Skipped to end');
   }
 });

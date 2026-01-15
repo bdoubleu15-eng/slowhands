@@ -72,6 +72,17 @@
     background-color: var(--hover-bg);
 }
 
+.toolbar-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.toolbar-separator {
+    color: var(--border-color);
+    margin: 0 4px;
+    font-weight: 300;
+}
+
 .app-title {
     margin-left: auto;
     margin-right: auto;
