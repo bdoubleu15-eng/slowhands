@@ -88,7 +88,11 @@ function getLanguageFromPath(filePath: string): string {
   return languageMap[ext] || 'plaintext';
 }
 
-// Update editor with file content
+// Streaming state
+let isStreaming = false;
+let streamingAbortController: AbortController | null = null;
+
+// Update editor with file content (instant)
 function updateEditorWithFile(filePath: string, content: string) {
   currentFilePath = filePath;
   const language = getLanguageFromPath(filePath);
@@ -104,6 +108,73 @@ function updateEditorWithFile(filePath: string, content: string) {
   updateFileNameDisplay(filePath);
   
   console.log(`Editor updated: ${filePath} (${language})`);
+}
+
+// Stream content character-by-character with typing effect
+async function streamToEditor(filePath: string, content: string, charsPerSecond: number = 60) {
+  // Cancel any existing stream
+  if (streamingAbortController) {
+    streamingAbortController.abort();
+  }
+  streamingAbortController = new AbortController();
+  const signal = streamingAbortController.signal;
+  
+  currentFilePath = filePath;
+  const language = getLanguageFromPath(filePath);
+  
+  // Set language and clear editor
+  const model = editor.getModel();
+  if (model) {
+    monaco.editor.setModelLanguage(model, language);
+    editor.setValue('');
+  }
+  
+  // Update filename display
+  updateFileNameDisplay(filePath);
+  
+  isStreaming = true;
+  const delayMs = 1000 / charsPerSecond;
+  let currentContent = '';
+  
+  // Stream character by character
+  for (let i = 0; i < content.length; i++) {
+    if (signal.aborted) {
+      console.log('Stream aborted');
+      break;
+    }
+    
+    currentContent += content[i];
+    editor.setValue(currentContent);
+    
+    // Move cursor to end
+    const lineCount = model?.getLineCount() || 1;
+    const lastLineLength = model?.getLineLength(lineCount) || 0;
+    editor.setPosition({ lineNumber: lineCount, column: lastLineLength + 1 });
+    editor.revealLine(lineCount);
+    
+    // Variable delay - faster for whitespace, slower for code
+    const char = content[i];
+    let charDelay = delayMs;
+    if (char === ' ' || char === '\t') {
+      charDelay = delayMs * 0.3; // Faster for spaces
+    } else if (char === '\n') {
+      charDelay = delayMs * 2; // Pause at newlines
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, charDelay));
+  }
+  
+  isStreaming = false;
+  console.log(`Finished streaming: ${filePath}`);
+}
+
+// Stop current streaming
+function stopStreaming() {
+  if (streamingAbortController) {
+    streamingAbortController.abort();
+    streamingAbortController = null;
+  }
+  isStreaming = false;
 }
 
 // Update the filename in the title bar or status
@@ -264,9 +335,18 @@ function handleAgentMessage(data: any) {
       if (data.file_op) {
         const { action, path: filePath, content: fileContent } = data.file_op;
         if (filePath && fileContent !== undefined) {
-          updateEditorWithFile(filePath, fileContent);
           const actionEmoji = action === 'write' ? '📝' : '📖';
           addOutputLine(`${actionEmoji} ${action}: ${filePath}`);
+          
+          // Stream writes (so you can watch the code appear), instant for reads
+          if (action === 'write') {
+            // Adjust speed based on content length (faster for longer files)
+            const baseSpeed = 80; // chars per second
+            const speedMultiplier = Math.min(3, 1 + fileContent.length / 500);
+            streamToEditor(filePath, fileContent, baseSpeed * speedMultiplier);
+          } else {
+            updateEditorWithFile(filePath, fileContent);
+          }
         }
       }
       
@@ -534,3 +614,14 @@ setInterval(() => {
     websocket.send(JSON.stringify({ type: 'ping' }));
   }
 }, 30000);
+
+// ============================================
+// Keyboard Shortcuts
+// ============================================
+document.addEventListener('keydown', (e) => {
+  // Escape - stop streaming (show full content instantly)
+  if (e.key === 'Escape' && isStreaming) {
+    stopStreaming();
+    addOutputLine('⏭ Skipped streaming');
+  }
+});
