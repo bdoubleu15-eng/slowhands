@@ -9,9 +9,10 @@ import asyncio
 import json
 import logging
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 import uuid
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -100,6 +101,21 @@ class WSPingMessage(WSMessageBase):
     type: str = "ping"
 
 
+class WSOpenFileMessage(WSMessageBase):
+    """Request to open a file from client to server."""
+    type: str = "open_file"
+    path: str
+
+
+class WSFileContentMessage(WSMessageBase):
+    """File content response from server to client."""
+    type: str = "file_content"
+    path: str
+    content: str
+    size: int = 0
+    lines: int = 0
+
+
 class WSPongMessage(WSMessageBase):
     """Pong response from server to client."""
     type: str = "pong"
@@ -149,6 +165,8 @@ def parse_ws_message(data: dict) -> Optional[WSMessageBase]:
             return WSStopMessage(**data)
         elif msg_type == "ping":
             return WSPingMessage(**data)
+        elif msg_type == "open_file":
+            return WSOpenFileMessage(**data)
         else:
             return None
     except Exception as e:
@@ -404,6 +422,75 @@ async def health_check():
         },
         "message_queue": manager.message_queue.get_stats(),
     }
+
+
+@app.get("/api/files")
+async def list_workspace_files():
+    """List files in the workspace directory."""
+    config = load_config()
+    workspace_path = Path(config.workspace_path)
+    
+    if not workspace_path.exists():
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        return {"files": [], "workspace": str(workspace_path)}
+    
+    def get_file_tree(path: Path, base_path: Path) -> List[dict]:
+        """Recursively build file tree."""
+        items = []
+        try:
+            for item in sorted(path.iterdir()):
+                rel_path = str(item.relative_to(base_path))
+                if item.is_dir():
+                    items.append({
+                        "name": item.name,
+                        "path": rel_path,
+                        "type": "directory",
+                        "children": get_file_tree(item, base_path)
+                    })
+                else:
+                    items.append({
+                        "name": item.name,
+                        "path": rel_path,
+                        "type": "file",
+                        "size": item.stat().st_size
+                    })
+        except PermissionError:
+            pass
+        return items
+    
+    files = get_file_tree(workspace_path, workspace_path)
+    return {"files": files, "workspace": str(workspace_path)}
+
+
+@app.get("/api/files/{file_path:path}")
+async def read_file(file_path: str):
+    """Read a file from the workspace."""
+    config = load_config()
+    workspace_path = Path(config.workspace_path)
+    full_path = workspace_path / file_path
+    
+    # Security check - ensure path is within workspace
+    try:
+        full_path.resolve().relative_to(workspace_path.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
+    
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    
+    if not full_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Not a file: {file_path}")
+    
+    try:
+        content = full_path.read_text()
+        return {
+            "path": file_path,
+            "content": content,
+            "size": len(content),
+            "lines": content.count('\n') + 1
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {e}")
 
 
 @app.post("/agent/chat", response_model=ChatResponse)
@@ -761,6 +848,40 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif isinstance(parsed_message, WSPingMessage):
                     manager.update_ping(websocket)
                     await websocket.send_json(WSPongMessage().model_dump())
+                
+                elif isinstance(parsed_message, WSOpenFileMessage):
+                    # Handle file open request
+                    manager.update_activity(websocket)
+                    config = load_config()
+                    workspace_path = Path(config.workspace_path)
+                    file_path = workspace_path / parsed_message.path
+                    
+                    try:
+                        # Security check
+                        file_path.resolve().relative_to(workspace_path.resolve())
+                        
+                        if file_path.exists() and file_path.is_file():
+                            content = file_path.read_text()
+                            await websocket.send_json(
+                                WSFileContentMessage(
+                                    path=parsed_message.path,
+                                    content=content,
+                                    size=len(content),
+                                    lines=content.count('\n') + 1,
+                                ).model_dump()
+                            )
+                        else:
+                            await websocket.send_json(
+                                WSErrorMessage(content=f"File not found: {parsed_message.path}").model_dump()
+                            )
+                    except ValueError:
+                        await websocket.send_json(
+                            WSErrorMessage(content="Access denied: path outside workspace").model_dump()
+                        )
+                    except Exception as e:
+                        await websocket.send_json(
+                            WSErrorMessage(content=f"Error reading file: {e}").model_dump()
+                        )
                     
                 else:
                     # Unknown or unparseable message type

@@ -91,6 +91,8 @@ function getLanguageFromPath(filePath: string): string {
 // Streaming state
 let isStreaming = false;
 let streamingAbortController: AbortController | null = null;
+let streamingFilePath: string | null = null;
+let pendingStreamContent: string | null = null;
 
 // Update editor with file content (instant)
 function updateEditorWithFile(filePath: string, content: string) {
@@ -112,7 +114,14 @@ function updateEditorWithFile(filePath: string, content: string) {
 
 // Stream content character-by-character with typing effect
 async function streamToEditor(filePath: string, content: string, charsPerSecond: number = 60) {
-  // Cancel any existing stream
+  // If already streaming this file, save content for later (will be shown when current stream ends)
+  if (isStreaming && streamingFilePath === filePath) {
+    pendingStreamContent = content;
+    console.log(`Already streaming ${filePath}, queued update`);
+    return;
+  }
+  
+  // Cancel any existing stream for a DIFFERENT file
   if (streamingAbortController) {
     streamingAbortController.abort();
   }
@@ -120,6 +129,7 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
   const signal = streamingAbortController.signal;
   
   currentFilePath = filePath;
+  streamingFilePath = filePath;
   const language = getLanguageFromPath(filePath);
   
   // Set language and clear editor
@@ -133,6 +143,7 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
   updateFileNameDisplay(filePath);
   
   isStreaming = true;
+  pendingStreamContent = null;
   const delayMs = 1000 / charsPerSecond;
   let currentContent = '';
   
@@ -165,7 +176,15 @@ async function streamToEditor(filePath: string, content: string, charsPerSecond:
   }
   
   isStreaming = false;
+  streamingFilePath = null;
   console.log(`Finished streaming: ${filePath}`);
+  
+  // If there's pending content (newer version of file), show it instantly
+  if (pendingStreamContent !== null) {
+    console.log(`Showing pending content for ${filePath}`);
+    editor.setValue(pendingStreamContent);
+    pendingStreamContent = null;
+  }
 }
 
 // Stop current streaming
@@ -175,6 +194,13 @@ function stopStreaming() {
     streamingAbortController = null;
   }
   isStreaming = false;
+  streamingFilePath = null;
+  
+  // Show pending content if any
+  if (pendingStreamContent !== null) {
+    editor.setValue(pendingStreamContent);
+    pendingStreamContent = null;
+  }
 }
 
 // Update the filename in the title bar or status
@@ -198,6 +224,90 @@ function updateFileNameDisplay(filePath: string) {
     }
     fileSpan.textContent = filePath;
   }
+}
+
+// ============================================
+// File Browser
+// ============================================
+interface FileItem {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  children?: FileItem[];
+}
+
+async function fetchWorkspaceFiles(): Promise<FileItem[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/files`);
+    if (!response.ok) throw new Error('Failed to fetch files');
+    const data = await response.json();
+    return data.files || [];
+  } catch (e) {
+    console.error('Error fetching workspace files:', e);
+    return [];
+  }
+}
+
+async function openFile(filePath: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_URL}/api/files/${encodeURIComponent(filePath)}`);
+    if (!response.ok) throw new Error('Failed to read file');
+    const data = await response.json();
+    updateEditorWithFile(filePath, data.content);
+    addOutputLine(`📂 Opened: ${filePath}`);
+  } catch (e) {
+    console.error('Error opening file:', e);
+    addOutputLine(`❌ Failed to open: ${filePath}`);
+  }
+}
+
+function renderFileTree(files: FileItem[], container: HTMLElement, indent: number = 0): void {
+  container.innerHTML = '';
+  
+  function createFileItem(file: FileItem, level: number): HTMLElement {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    if (level > 0) div.classList.add('indent');
+    div.style.paddingLeft = `${12 + level * 12}px`;
+    
+    const icon = file.type === 'directory' ? '📁' : '📄';
+    div.textContent = `${icon} ${file.name}`;
+    
+    if (file.type === 'file') {
+      div.style.cursor = 'pointer';
+      div.addEventListener('click', () => openFile(file.path));
+    }
+    
+    return div;
+  }
+  
+  function addItems(items: FileItem[], level: number): void {
+    for (const item of items) {
+      container.appendChild(createFileItem(item, level));
+      if (item.type === 'directory' && item.children) {
+        addItems(item.children, level + 1);
+      }
+    }
+  }
+  
+  if (files.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'file-item';
+    empty.textContent = '(empty workspace)';
+    empty.style.opacity = '0.5';
+    container.appendChild(empty);
+  } else {
+    addItems(files, 0);
+  }
+}
+
+async function refreshFileBrowser(): Promise<void> {
+  const sidebarContent = document.querySelector('.sidebar-content');
+  if (!sidebarContent) return;
+  
+  const files = await fetchWorkspaceFiles();
+  renderFileTree(files, sidebarContent as HTMLElement);
 }
 
 // ============================================
@@ -265,6 +375,9 @@ function connectWebSocket() {
     // #region debug log
     fetch('http://127.0.0.1:7244/ingest/578d1539-31a8-42d3-881d-710e16077329',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'frontend/src/main.ts:websocket.onopen',message:'ws_open',data:{readyState:websocket?.readyState},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
     // #endregion
+    
+    // Refresh file browser on connect
+    refreshFileBrowser();
     
     // Process any queued messages
     if (messageQueue.length > 0) {
@@ -340,10 +453,13 @@ function handleAgentMessage(data: any) {
           
           // Stream writes (so you can watch the code appear), instant for reads
           if (action === 'write') {
-            // Adjust speed based on content length (faster for longer files)
-            const baseSpeed = 80; // chars per second
-            const speedMultiplier = Math.min(3, 1 + fileContent.length / 500);
+            // ~2 words per second = ~12 chars/sec (average word is 5-6 chars + space)
+            const baseSpeed = 12; // chars per second
+            // Slight speedup for very long files (over 1000 chars)
+            const speedMultiplier = Math.min(2, 1 + fileContent.length / 2000);
             streamToEditor(filePath, fileContent, baseSpeed * speedMultiplier);
+            // Refresh file browser after write
+            setTimeout(() => refreshFileBrowser(), 500);
           } else {
             updateEditorWithFile(filePath, fileContent);
           }
@@ -384,6 +500,13 @@ function handleAgentMessage(data: any) {
         lastPingLatencyMs = Date.now() - lastPingSentAt;
         lastPingSentAt = null;
         console.debug(`Ping latency: ${lastPingLatencyMs}ms`);
+      }
+      break;
+    case 'file_content':
+      // File content received from server
+      if (data.path && data.content !== undefined) {
+        updateEditorWithFile(data.path, data.content);
+        addOutputLine(`📂 Opened: ${data.path}`);
       }
       break;
     default:

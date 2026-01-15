@@ -50,6 +50,9 @@ class Config:
     # === Safety Settings ===
     allow_code_execution: bool = True
     allowed_paths: List[str] = field(default_factory=lambda: ["."])
+    
+    # === Workspace Settings ===
+    workspace_path: str = ""  # Will be set to PROJECT_ROOT/workspace by default
 
     # === Reliability Settings ===
     request_timeout: float = 60.0           # Seconds before API request timeout
@@ -117,6 +120,9 @@ class Config:
 
             # Safety
             allow_code_execution=get_bool("ALLOW_CODE_EXECUTION", True),
+            
+            # Workspace
+            workspace_path=os.getenv("WORKSPACE_PATH", str(PROJECT_ROOT / "workspace")),
 
             # Reliability
             request_timeout=get_float("REQUEST_TIMEOUT", 60.0),

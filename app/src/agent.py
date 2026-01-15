@@ -184,7 +184,9 @@ Guidelines:
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
-        self.register_tool(FileOpsTool())
+        # Use workspace path from config for file operations
+        workspace = getattr(self.config, 'workspace_path', None)
+        self.register_tool(FileOpsTool(workspace_path=workspace))
 
         if self.config.allow_code_execution:
             self.register_tool(CodeRunnerTool())

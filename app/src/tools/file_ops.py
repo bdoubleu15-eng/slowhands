@@ -24,18 +24,23 @@ class FileOpsTool(BaseTool):
     - exists: Check if a file/directory exists
 
     Safety: By default, only allows operations within the
-    current working directory to prevent accidental damage.
+    workspace directory to prevent accidental damage.
     """
 
-    def __init__(self, allowed_paths: List[str] = None):
+    def __init__(self, workspace_path: str = None, allowed_paths: List[str] = None):
         """
         Initialize the file operations tool.
 
         Args:
-            allowed_paths: List of paths where operations are allowed.
-                           Defaults to current directory only.
+            workspace_path: Base directory for all file operations.
+                           All paths are relative to this directory.
+            allowed_paths: List of additional paths where operations are allowed.
         """
-        self.allowed_paths = allowed_paths or ["."]
+        self.workspace_path = Path(workspace_path) if workspace_path else Path.cwd()
+        # Ensure workspace exists
+        self.workspace_path.mkdir(parents=True, exist_ok=True)
+        # Allowed paths include workspace and any additional paths
+        self.allowed_paths = [str(self.workspace_path)] + (allowed_paths or [])
 
     @property
     def name(self) -> str:
@@ -110,10 +115,16 @@ Use this to view code, create files, or explore the project structure."""
         """
         Resolve and validate a path.
 
+        Relative paths are resolved relative to workspace_path.
         Ensures the path is within allowed directories.
         """
-        # Convert to absolute path
-        resolved = Path(path).resolve()
+        path_obj = Path(path)
+        
+        # If path is relative, make it relative to workspace
+        if not path_obj.is_absolute():
+            resolved = (self.workspace_path / path).resolve()
+        else:
+            resolved = path_obj.resolve()
 
         # Check if it's within allowed paths
         for allowed in self.allowed_paths:
@@ -124,15 +135,7 @@ Use this to view code, create files, or explore the project structure."""
             except ValueError:
                 continue
 
-        # Also allow if it's under current directory
-        cwd = Path.cwd()
-        try:
-            resolved.relative_to(cwd)
-            return resolved
-        except ValueError:
-            pass
-
-        raise ValueError(f"Path '{path}' is outside allowed directories")
+        raise ValueError(f"Path '{path}' is outside allowed directories (workspace: {self.workspace_path})")
 
     def _read_file(self, path: Path) -> ToolResult:
         """Read a file's contents."""
