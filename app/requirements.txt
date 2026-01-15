@@ -1,0 +1,36 @@
+# SlowHands Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core LLM
+openai>=1.0.0              # OpenAI API client
+google-genai>=1.0.0        # Google Gemini API client
+
+# Agent Framework (optional, for learning patterns)
+# langchain>=0.1.0         # Uncomment if you want to explore LangChain
+
+# Terminal output
+rich>=13.0.0               # Beautiful terminal output
+
+# Configuration
+python-dotenv>=1.0.0       # Load .env files
+
+# Utilities
+pydantic>=2.0.0            # Data validation (used in interfaces)
+
+# Reliability
+tenacity>=8.2.0            # Retry logic with exponential backoff
+
+# API Server
+fastapi>=0.115.0           # Fast async web framework
+uvicorn[standard]>=0.32.0  # ASGI server for FastAPI
+websockets>=14.0           # WebSocket support
+
+# Development
+pytest>=7.0.0              # Testing
+pytest-asyncio>=0.21.0     # Async test support
+
+# Optional: For code execution sandboxing
+# docker>=6.0.0            # Uncomment for sandboxed execution
+
+# Optional: For Anthropic Claude support
+# anthropic>=0.25.0        # Uncomment for Anthropic API support

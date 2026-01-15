@@ -1,0 +1,70 @@
+%% SlowHands Architecture Diagram
+%% View this in Obsidian or mermaid.live
+
+graph TB
+    subgraph "User Interface Layer"
+        TUI[🖥️ Terminal UI<br/>Textual + tmux-style]
+        WEB[🌐 Web UI<br/>Streamlit]
+    end
+
+    subgraph "UI Widgets"
+        Status[AgentStatusWidget<br/>🧠💭💡 Animated]
+        Stats[SystemStatsWidget<br/>▂▃▅▆ Sparklines]
+        Log[ActivityLog<br/>Timestamped Events]
+        Context[ContextPanel<br/>Memory View]
+        Palette[CommandPalette<br/>Ctrl+P Modal]
+    end
+
+    subgraph "Agent Layer"
+        CA[🤖 Coder Agent<br/>Context-Aware]
+        TA[👨‍🏫 Teacher Agent<br/>Explainer]
+    end
+
+    subgraph "Shared Context"
+        PC[📊 ProjectContext]
+        FS[File States]
+        TH[Tool History]
+    end
+
+    subgraph "Intelligence"
+        LLM[🧠 LLM Interface<br/>OpenAI / Anthropic / DeepSeek]
+        Memory[📝 Memory Store]
+    end
+
+    subgraph "Capabilities"
+        Tools[🔧 Tool Registry]
+        FileOps[📁 File Operations]
+        CodeRunner[💻 Code Runner]
+    end
+
+    TUI --> Status
+    TUI --> Stats
+    TUI --> Log
+    TUI --> Context
+    TUI --> Palette
+    
+    TUI --> CA
+    TUI --> TA
+    WEB --> CA
+    WEB --> TA
+    
+    CA --> PC
+    TA --> PC
+    PC --> FS
+    PC --> TH
+    
+    CA --> LLM
+    CA --> Tools
+    TA --> LLM
+    
+    LLM --> Memory
+    Tools --> FileOps
+    Tools --> CodeRunner
+
+    style CA fill:#3b82f6,stroke:#333,stroke-width:2px
+    style TA fill:#22c55e,stroke:#333,stroke-width:2px
+    style LLM fill:#9cf,stroke:#333
+    style Tools fill:#9f9,stroke:#333
+    style PC fill:#a855f7,stroke:#333
+    style TUI fill:#06b6d4,stroke:#333
+    style WEB fill:#eab308,stroke:#333
