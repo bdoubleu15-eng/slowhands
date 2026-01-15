@@ -49,8 +49,14 @@ class Config:
 
     # === Safety Settings ===
     allow_code_execution: bool = True
+    allow_git_operations: bool = True
+    allow_terminal_execution: bool = True
     allowed_paths: List[str] = field(default_factory=lambda: ["."])
-    
+
+    # === Web Search Settings ===
+    allow_web_search: bool = True
+    web_search_api_key: str = ""
+
     # === Workspace Settings ===
     workspace_path: str = ""  # Will be set to PROJECT_ROOT/workspace by default
 
@@ -69,6 +75,17 @@ class Config:
     tool_retry_min_wait: float = 1.0        # Min seconds between tool retries
     tool_retry_max_wait: float = 10.0      # Max seconds between tool retries
     message_queue_max_size: int = 100       # Max size of message queue
+
+    # === Security Settings ===
+    enable_debug_logging: bool = False       # Enable detailed debug file logging (disabled by default for security)
+    debug_log_path: str = ""                 # Path for debug log file (defaults to workspace/.debug.log)
+    allowed_cors_origins: List[str] = field(default_factory=lambda: [
+        "http://localhost:*",
+        "http://127.0.0.1:*",
+        "https://localhost:*",
+        "https://127.0.0.1:*",
+    ])
+    max_ws_message_size: int = 1048576       # Max WebSocket message size in bytes (1MB default)
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -120,7 +137,13 @@ class Config:
 
             # Safety
             allow_code_execution=get_bool("ALLOW_CODE_EXECUTION", True),
-            
+            allow_git_operations=get_bool("ALLOW_GIT_OPERATIONS", True),
+            allow_terminal_execution=get_bool("ALLOW_TERMINAL_EXECUTION", True),
+
+            # Web Search
+            allow_web_search=get_bool("ALLOW_WEB_SEARCH", True),
+            web_search_api_key=os.getenv("WEB_SEARCH_API_KEY", ""),
+
             # Workspace
             workspace_path=os.getenv("WORKSPACE_PATH", str(PROJECT_ROOT / "workspace")),
 
@@ -139,6 +162,17 @@ class Config:
             tool_retry_min_wait=get_float("TOOL_RETRY_MIN_WAIT", 1.0),
             tool_retry_max_wait=get_float("TOOL_RETRY_MAX_WAIT", 10.0),
             message_queue_max_size=get_int("MESSAGE_QUEUE_MAX_SIZE", 100),
+
+            # Security
+            enable_debug_logging=get_bool("ENABLE_DEBUG_LOGGING", False),
+            debug_log_path=os.getenv("DEBUG_LOG_PATH", ""),
+            allowed_cors_origins=os.getenv("ALLOWED_CORS_ORIGINS", "").split(",") if os.getenv("ALLOWED_CORS_ORIGINS") else [
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://localhost:*",
+                "https://127.0.0.1:*",
+            ],
+            max_ws_message_size=get_int("MAX_WS_MESSAGE_SIZE", 1048576),
         )
 
     def validate(self) -> List[str]:

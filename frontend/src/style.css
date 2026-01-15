@@ -11,6 +11,10 @@
     --hover-bg: #e8e8e8;
     --active-bg: #d4d4d4;
     --sidebar-width: 180px;
+    --menu-bg: #ffffff;
+    --menu-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --transition-fast: 0.1s ease;
+    --transition-normal: 0.2s ease;
 }
 
 #app {
@@ -25,7 +29,9 @@
     width: 100vw;
 }
 
-/* Title Bar */
+/* =====================================================
+   TITLE BAR
+   ===================================================== */
 #title-bar {
     grid-area: titlebar;
     background-color: var(--bg-titlebar);
@@ -50,12 +56,18 @@
     font-size: 16px;
     margin-right: 12px;
     -webkit-app-region: no-drag;
+    color: var(--accent);
+}
+
+.app-icon .codicon {
+    font-size: 18px;
 }
 
 .toolbar {
     display: flex;
     gap: 2px;
     -webkit-app-region: no-drag;
+    align-items: center;
 }
 
 .toolbar-btn {
@@ -66,15 +78,27 @@
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
+    transition: background-color var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .toolbar-btn:hover {
     background-color: var(--hover-bg);
 }
 
+.toolbar-btn:active {
+    background-color: var(--active-bg);
+}
+
 .toolbar-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.toolbar-btn .codicon {
+    font-size: 14px;
 }
 
 .toolbar-separator {
@@ -90,6 +114,85 @@
     color: var(--text-secondary);
 }
 
+/* =====================================================
+   DROPDOWN MENUS
+   ===================================================== */
+.menu-container {
+    position: relative;
+}
+
+.menu-trigger {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    background: var(--menu-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: var(--menu-shadow);
+    padding: 4px 0;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity var(--transition-fast), 
+                transform var(--transition-fast), 
+                visibility var(--transition-fast);
+}
+
+.menu-container:hover .dropdown-menu,
+.menu-container.open .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.menu-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background-color var(--transition-fast);
+}
+
+.menu-item:hover {
+    background-color: var(--hover-bg);
+}
+
+.menu-item:active {
+    background-color: var(--active-bg);
+}
+
+.menu-item .codicon {
+    font-size: 14px;
+    color: var(--text-secondary);
+    width: 16px;
+    text-align: center;
+}
+
+.menu-item .shortcut {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.menu-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 4px 8px;
+}
+
+/* =====================================================
+   WINDOW CONTROLS
+   ===================================================== */
 .window-controls {
     display: flex;
     -webkit-app-region: no-drag;
@@ -106,6 +209,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color var(--transition-fast);
+}
+
+.win-btn .codicon {
+    font-size: 16px;
 }
 
 .win-btn:hover {
@@ -117,7 +225,9 @@
     color: white;
 }
 
-/* Activity Bar */
+/* =====================================================
+   ACTIVITY BAR
+   ===================================================== */
 #activity-bar {
     grid-area: activity;
     background-color: var(--bg-activity-bar);
@@ -134,10 +244,16 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 24px;
     cursor: pointer;
     opacity: 0.6;
     border-radius: 6px;
+    transition: opacity var(--transition-fast), 
+                background-color var(--transition-fast);
+    position: relative;
+}
+
+.icon .codicon {
+    font-size: 22px;
 }
 
 .icon:hover { 
@@ -147,11 +263,24 @@
 
 .icon.active { 
     opacity: 1; 
-    border-left: 2px solid var(--accent);
     background-color: var(--active-bg);
 }
 
-/* Sidebar */
+.icon.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 24px;
+    background-color: var(--accent);
+    border-radius: 0 2px 2px 0;
+}
+
+/* =====================================================
+   SIDEBAR
+   ===================================================== */
 #sidebar {
     grid-area: sidebar;
     background-color: var(--bg-sidebar);
@@ -170,6 +299,13 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sidebar-header .codicon {
+    font-size: 14px;
 }
 
 .sidebar-content {
@@ -179,16 +315,35 @@
 }
 
 .file-item {
-    padding: 3px 12px;
+    padding: 4px 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
+    gap: 6px;
     border-radius: 4px;
     margin: 1px 4px;
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: background-color var(--transition-fast);
+}
+
+.file-item .codicon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.file-item .codicon-folder {
+    color: #dcb67a;
+}
+
+.file-item .codicon-file-code {
+    color: #519aba;
+}
+
+.file-item .codicon-markdown {
+    color: #519aba;
 }
 
 .file-item:hover { 
@@ -199,12 +354,14 @@
     padding-left: 24px; 
 }
 
-/* Resize Handle */
+/* =====================================================
+   RESIZE HANDLES
+   ===================================================== */
 #resize-handle {
     grid-area: resize;
     background-color: var(--border-color);
     cursor: col-resize;
-    transition: background-color 0.15s;
+    transition: background-color var(--transition-normal);
 }
 
 #resize-handle:hover,
@@ -212,7 +369,21 @@
     background-color: var(--accent);
 }
 
-/* Agent Panel */
+#agent-resize-handle {
+    height: 4px;
+    background-color: var(--border-color);
+    cursor: row-resize;
+    transition: background-color var(--transition-normal);
+}
+
+#agent-resize-handle:hover,
+#agent-resize-handle.dragging {
+    background-color: var(--accent);
+}
+
+/* =====================================================
+   AGENT PANEL
+   ===================================================== */
 #agent-panel {
     border-top: 1px solid var(--border-color);
     background-color: #f0f0f0;
@@ -220,18 +391,6 @@
     flex-direction: column;
     min-height: 100px;
     height: 220px;
-}
-
-#agent-resize-handle {
-    height: 4px;
-    background-color: var(--border-color);
-    cursor: row-resize;
-    transition: background-color 0.15s;
-}
-
-#agent-resize-handle:hover,
-#agent-resize-handle.dragging {
-    background-color: var(--accent);
 }
 
 .agent-header {
@@ -242,13 +401,87 @@
     letter-spacing: 0.5px;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
+.agent-header .codicon {
+    font-size: 12px;
+}
+
+/* =====================================================
+   THINKING INDICATOR / SPINNER
+   ===================================================== */
+.thinking-indicator {
+    margin-left: auto;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--accent);
+}
+
+.thinking-indicator.visible {
+    display: flex;
+}
+
+.thinking-indicator span {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Progress bar variant */
+.progress-bar {
+    height: 2px;
+    background-color: var(--border-color);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background-color: var(--accent);
+    width: 30%;
+    animation: progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+    0%, 100% { 
+        width: 20%; 
+        transform: translateX(0); 
+    }
+    50% { 
+        width: 40%; 
+        transform: translateX(150%); 
+    }
+}
+
+/* =====================================================
+   AGENT OUTPUT
+   ===================================================== */
 #agent-output {
     flex: 1;
     padding: 8px 12px;
     font-size: 12px;
-    font-family: 'Consolas', 'Monaco', monospace;
+    font-family: 'Consolas', 'Monaco', 'Cascadia Code', monospace;
     overflow-y: auto;
     overflow-x: hidden;
     color: var(--text-primary);
@@ -261,6 +494,12 @@
     word-wrap: break-word;
     padding: 4px 0;
     border-bottom: 1px solid rgba(0,0,0,0.05);
+    animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .output-line.thinking {
@@ -275,6 +514,9 @@
     color: #388e3c;
 }
 
+/* =====================================================
+   AGENT INPUT
+   ===================================================== */
 .agent-input-wrap {
     display: flex;
     padding: 6px;
@@ -284,17 +526,20 @@
 
 #agent-input {
     flex: 1;
-    padding: 6px 8px;
+    padding: 6px 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
     background: white;
     color: var(--text-primary);
     outline: none;
+    transition: border-color var(--transition-fast), 
+                box-shadow var(--transition-fast);
 }
 
 #agent-input:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.15);
 }
 
 #agent-input::placeholder {
@@ -302,7 +547,7 @@
 }
 
 #agent-send {
-    padding: 6px 10px;
+    padding: 6px 12px;
     background-color: var(--accent);
     color: white;
     border: none;
@@ -310,34 +555,64 @@
     cursor: pointer;
     font-size: 12px;
     font-weight: bold;
+    transition: background-color var(--transition-fast),
+                transform var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #agent-send:hover {
     background-color: #006abc;
 }
 
+#agent-send:active {
+    transform: scale(0.96);
+}
+
+#agent-send .codicon {
+    font-size: 14px;
+}
+
 #agent-stop {
-    padding: 6px 8px;
+    padding: 6px 10px;
     background-color: #d32f2f;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    transition: background-color var(--transition-fast),
+                transform var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #agent-stop:hover {
     background-color: #b71c1c;
 }
 
-/* Editor */
+#agent-stop:active {
+    transform: scale(0.96);
+}
+
+#agent-stop .codicon {
+    font-size: 14px;
+}
+
+/* =====================================================
+   EDITOR
+   ===================================================== */
 #editor-container {
     grid-area: editor;
     background-color: var(--bg-editor);
     overflow: hidden;
 }
 
-/* Status Bar */
+/* =====================================================
+   STATUS BAR
+   ===================================================== */
 #status-bar {
     grid-area: status;
     background-color: var(--bg-statusbar);
@@ -349,16 +624,45 @@
     font-size: 12px;
 }
 
-#status-bar .left span, #status-bar .right span {
-    margin-right: 15px;
+#status-bar .left,
+#status-bar .right {
+    display: flex;
+    align-items: center;
 }
 
-/* Selection colors for light theme */
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 15px;
+    padding: 0 4px;
+    border-radius: 2px;
+    transition: background-color var(--transition-fast);
+}
+
+.status-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-item .codicon {
+    font-size: 12px;
+}
+
+#connection-status .codicon-circle-filled {
+    color: #4caf50;
+}
+
+#connection-status .codicon-circle-outline {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* =====================================================
+   SELECTION & SCROLLBARS
+   ===================================================== */
 ::selection {
     background-color: #add6ff;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -375,4 +679,25 @@
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* =====================================================
+   FOCUS STATES (Accessibility)
+   ===================================================== */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* =====================================================
+   UTILITY ANIMATIONS
+   ===================================================== */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.pulse {
+    animation: pulse 1.5s ease-in-out infinite;
 }

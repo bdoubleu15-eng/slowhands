@@ -62,8 +62,14 @@ from .reliability import (
 
 logger = logging.getLogger(__name__)
 
-# #region debug log
+# Global debug logging state (configured by LLMInterface on init)
+_debug_logging_enabled = False
+_debug_log_path = ""
+
 def _dbg_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    """Debug logging - writes to debug log file if enabled via config."""
+    if not _debug_logging_enabled or not _debug_log_path:
+        return
     try:
         payload = {
             "id": f"log_{int(time.time() * 1000)}_{uuid.uuid4().hex[:6]}",
@@ -75,11 +81,10 @@ def _dbg_log(location: str, message: str, data: dict, hypothesis_id: str) -> Non
             "runId": "run1",
             "hypothesisId": hypothesis_id,
         }
-        with open("/home/dub/projects/slowhands/.cursor/debug.log", "a") as f:
+        with open(_debug_log_path, "a") as f:
             f.write(json.dumps(payload) + "\n")
     except Exception:
         pass
-# #endregion
 
 
 @dataclass
@@ -159,6 +164,17 @@ class LLMInterface:
         self.model = config.model
         self.temperature = config.temperature
         self.max_tokens = config.max_tokens
+
+        # Configure debug logging based on config
+        global _debug_logging_enabled, _debug_log_path
+        _debug_logging_enabled = config.enable_debug_logging
+        if _debug_logging_enabled:
+            from pathlib import Path
+            if config.debug_log_path:
+                _debug_log_path = config.debug_log_path
+            else:
+                # Default to workspace/.debug.log
+                _debug_log_path = str(Path(config.workspace_path) / ".debug.log")
 
         # Initialize client based on provider
         if self.provider == "openai":

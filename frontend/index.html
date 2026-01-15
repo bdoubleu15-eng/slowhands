@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SlowHands</title>
+    <!-- Codicons - VS Code's icon font -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.35/dist/codicon.css">
     <!-- Basic Reset -->
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; color: #1e1e1e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
@@ -14,58 +16,108 @@
         <!-- Title Bar (Draggable) -->
         <div id="title-bar">
             <div class="title-bar-drag">
-                <div class="app-icon">⚡</div>
+                <div class="app-icon"><i class="codicon codicon-zap"></i></div>
                 <div class="toolbar">
-                    <button class="toolbar-btn">File</button>
-                    <button class="toolbar-btn">Edit</button>
-                    <button class="toolbar-btn">View</button>
-                    <button class="toolbar-btn">Help</button>
+                    <!-- File Menu -->
+                    <div class="menu-container">
+                        <button class="toolbar-btn menu-trigger">File</button>
+                        <div class="dropdown-menu">
+                            <div class="menu-item"><i class="codicon codicon-new-file"></i> New File<span class="shortcut">Ctrl+N</span></div>
+                            <div class="menu-item"><i class="codicon codicon-folder-opened"></i> Open File<span class="shortcut">Ctrl+O</span></div>
+                            <div class="menu-separator"></div>
+                            <div class="menu-item"><i class="codicon codicon-save"></i> Save<span class="shortcut">Ctrl+S</span></div>
+                            <div class="menu-item"><i class="codicon codicon-save-all"></i> Save All<span class="shortcut">Ctrl+Shift+S</span></div>
+                            <div class="menu-separator"></div>
+                            <div class="menu-item"><i class="codicon codicon-close"></i> Close File</div>
+                        </div>
+                    </div>
+                    <!-- Edit Menu -->
+                    <div class="menu-container">
+                        <button class="toolbar-btn menu-trigger">Edit</button>
+                        <div class="dropdown-menu">
+                            <div class="menu-item"><i class="codicon codicon-discard"></i> Undo<span class="shortcut">Ctrl+Z</span></div>
+                            <div class="menu-item"><i class="codicon codicon-redo"></i> Redo<span class="shortcut">Ctrl+Y</span></div>
+                            <div class="menu-separator"></div>
+                            <div class="menu-item"><i class="codicon codicon-clippy"></i> Copy<span class="shortcut">Ctrl+C</span></div>
+                            <div class="menu-item"><i class="codicon codicon-paste"></i> Paste<span class="shortcut">Ctrl+V</span></div>
+                            <div class="menu-item"><i class="codicon codicon-find"></i> Find<span class="shortcut">Ctrl+F</span></div>
+                        </div>
+                    </div>
+                    <!-- View Menu -->
+                    <div class="menu-container">
+                        <button class="toolbar-btn menu-trigger">View</button>
+                        <div class="dropdown-menu">
+                            <div class="menu-item"><i class="codicon codicon-layout-sidebar-left"></i> Toggle Sidebar<span class="shortcut">Ctrl+B</span></div>
+                            <div class="menu-item"><i class="codicon codicon-layout-panel"></i> Toggle Agent Panel<span class="shortcut">Ctrl+J</span></div>
+                            <div class="menu-separator"></div>
+                            <div class="menu-item"><i class="codicon codicon-zoom-in"></i> Zoom In<span class="shortcut">Ctrl++</span></div>
+                            <div class="menu-item"><i class="codicon codicon-zoom-out"></i> Zoom Out<span class="shortcut">Ctrl+-</span></div>
+                        </div>
+                    </div>
+                    <!-- Help Menu -->
+                    <div class="menu-container">
+                        <button class="toolbar-btn menu-trigger">Help</button>
+                        <div class="dropdown-menu">
+                            <div class="menu-item"><i class="codicon codicon-keyboard"></i> Keyboard Shortcuts</div>
+                            <div class="menu-item"><i class="codicon codicon-book"></i> Documentation</div>
+                            <div class="menu-separator"></div>
+                            <div class="menu-item"><i class="codicon codicon-info"></i> About SlowHands</div>
+                        </div>
+                    </div>
                     <span class="toolbar-separator">|</span>
-                    <button class="toolbar-btn" id="pause-btn" title="Pause/Resume streaming (Space)">⏸</button>
-                    <button class="toolbar-btn" id="skip-btn" title="Skip to end (Escape)">⏭</button>
+                    <button class="toolbar-btn" id="pause-btn" title="Pause/Resume streaming (Space)"><i class="codicon codicon-debug-pause"></i></button>
+                    <button class="toolbar-btn" id="skip-btn" title="Skip to end (Escape)"><i class="codicon codicon-debug-step-over"></i></button>
                 </div>
                 <div class="app-title">SlowHands</div>
             </div>
             <div class="window-controls">
-                <button class="win-btn minimize" id="minimize-btn">─</button>
-                <button class="win-btn maximize" id="maximize-btn">□</button>
-                <button class="win-btn close" id="close-btn">✕</button>
+                <button class="win-btn minimize" id="minimize-btn"><i class="codicon codicon-chrome-minimize"></i></button>
+                <button class="win-btn maximize" id="maximize-btn"><i class="codicon codicon-chrome-maximize"></i></button>
+                <button class="win-btn close" id="close-btn"><i class="codicon codicon-chrome-close"></i></button>
             </div>
         </div>
 
         <!-- 1. Activity Bar (Leftmost) -->
         <div id="activity-bar">
-            <div class="icon active">📄</div>
-            <div class="icon">🔍</div>
-            <div class="icon">🌿</div>
-            <div class="icon">🐞</div>
-            <div class="icon">🧩</div>
+            <div class="icon active" title="Explorer"><i class="codicon codicon-files"></i></div>
+            <div class="icon" title="Search"><i class="codicon codicon-search"></i></div>
+            <div class="icon" title="Source Control"><i class="codicon codicon-source-control"></i></div>
+            <div class="icon" title="Debug"><i class="codicon codicon-debug-alt"></i></div>
+            <div class="icon" title="Extensions"><i class="codicon codicon-extensions"></i></div>
         </div>
 
         <!-- 2. Side Bar (Explorer) - Now resizable -->
         <div id="sidebar">
-            <div class="sidebar-header">EXPLORER</div>
+            <div class="sidebar-header">
+                <i class="codicon codicon-folder"></i> EXPLORER
+            </div>
             <div class="sidebar-content">
-                <div class="file-item">📁 app</div>
-                <div class="file-item indent">📁 src</div>
-                <div class="file-item indent">📄 agent.py</div>
-                <div class="file-item indent">📄 llm.py</div>
-                <div class="file-item">📁 frontend</div>
-                <div class="file-item indent">📄 main.ts</div>
-                <div class="file-item">📄 README.md</div>
+                <div class="file-item"><i class="codicon codicon-folder"></i> app</div>
+                <div class="file-item indent"><i class="codicon codicon-folder"></i> src</div>
+                <div class="file-item indent"><i class="codicon codicon-file-code"></i> agent.py</div>
+                <div class="file-item indent"><i class="codicon codicon-file-code"></i> llm.py</div>
+                <div class="file-item"><i class="codicon codicon-folder"></i> frontend</div>
+                <div class="file-item indent"><i class="codicon codicon-file-code"></i> main.ts</div>
+                <div class="file-item"><i class="codicon codicon-markdown"></i> README.md</div>
             </div>
             
             <!-- Agent Panel at bottom of sidebar (resizable) -->
             <div id="agent-panel">
                 <div id="agent-resize-handle"></div>
-                <div class="agent-header">AGENT</div>
+                <div class="agent-header">
+                    <i class="codicon codicon-robot"></i> AGENT
+                    <div class="thinking-indicator" id="thinking-indicator">
+                        <div class="spinner"></div>
+                        <span>Thinking...</span>
+                    </div>
+                </div>
                 <div id="agent-output">
                     <div class="output-line">Ready...</div>
                 </div>
                 <div class="agent-input-wrap">
                     <input type="text" id="agent-input" placeholder="Ask the agent..." />
-                    <button id="agent-send">→</button>
-                    <button id="agent-stop" title="Stop agent">⏹</button>
+                    <button id="agent-send" title="Send"><i class="codicon codicon-send"></i></button>
+                    <button id="agent-stop" title="Stop agent"><i class="codicon codicon-debug-stop"></i></button>
                 </div>
             </div>
         </div>
@@ -79,13 +131,13 @@
         <!-- 4. Status Bar -->
         <div id="status-bar">
             <div class="left">
-                <span>○ Offline</span>
-                <span>SlowHands</span>
+                <span class="status-item" id="connection-status"><i class="codicon codicon-circle-outline"></i> Offline</span>
+                <span class="status-item"><i class="codicon codicon-zap"></i> SlowHands</span>
             </div>
             <div class="right">
-                <span>Ln 1, Col 1</span>
-                <span>UTF-8</span>
-                <span>Gemini</span>
+                <span class="status-item">Ln 1, Col 1</span>
+                <span class="status-item">UTF-8</span>
+                <span class="status-item"><i class="codicon codicon-sparkle"></i> Gemini</span>
             </div>
         </div>
     </div>

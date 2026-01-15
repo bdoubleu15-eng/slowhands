@@ -5,6 +5,10 @@
 openai>=1.0.0              # OpenAI API client
 google-genai>=1.0.0        # Google Gemini API client
 
+# Web Search
+requests>=2.31.0           # HTTP client for web search
+serpapi>=0.1.5             # SerpAPI for Google search results
+
 # Agent Framework (optional, for learning patterns)
 # langchain>=0.1.0         # Uncomment if you want to explore LangChain
 
