@@ -10,8 +10,59 @@
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; color: #1e1e1e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
     </style>
+    <!-- Critical loading styles -->
+    <style>
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        body.loading #loading-overlay {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        body.loading #app {
+            display: none;
+        }
+    </style>
   </head>
-  <body>
+  <body class="loading">
+    <div id="loading-overlay">
+        <div class="loading-hands">
+            <svg class="hands-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Center dot -->
+                <circle cx="50" cy="50" r="4" fill="#0078d4"/>
+
+                <!-- Left hand -->
+                <g class="hand left-hand">
+                    <g transform="translate(4, 24) scale(0.8)">
+                        <path d="M32 4 C28 4, 26 10, 26 16 L26 28 C26 26, 22 24, 18 24 C14 24, 12 28, 12 32 L12 52 C12 58, 18 62, 24 62 L40 62 C46 62, 52 58, 52 52 L52 32 C52 28, 50 24, 46 24 C42 24, 38 26, 38 28 L38 16 C38 10, 36 4, 32 4 Z" fill="#ffffff" stroke="#0078d4" stroke-width="2" stroke-linejoin="round"/>
+                    </g>
+                </g>
+
+                <!-- Right hand -->
+                <g class="hand right-hand">
+                    <g transform="translate(96, 24) scale(-0.8, 0.8)">
+                        <path d="M32 4 C28 4, 26 10, 26 16 L26 28 C26 26, 22 24, 18 24 C14 24, 12 28, 12 32 L12 52 C12 58, 18 62, 24 62 L40 62 C46 62, 52 58, 52 52 L52 32 C52 28, 50 24, 46 24 C42 24, 38 26, 38 28 L38 16 C38 10, 36 4, 32 4 Z" fill="#ffffff" stroke="#0078d4" stroke-width="2" stroke-linejoin="round"/>
+                    </g>
+                </g>
+            </svg>
+            <div class="loading-text">SlowHands is waking up...</div>
+        </div>
+    </div>
     <div id="app">
         <!-- Title Bar (Draggable) -->
         <div id="title-bar">
@@ -23,7 +74,8 @@
                         <button class="toolbar-btn menu-trigger">File</button>
                         <div class="dropdown-menu">
                             <div class="menu-item"><i class="codicon codicon-new-file"></i> New File<span class="shortcut">Ctrl+N</span></div>
-                            <div class="menu-item"><i class="codicon codicon-folder-opened"></i> Open File<span class="shortcut">Ctrl+O</span></div>
+                            <div class="menu-item"><i class="codicon codicon-folder"></i> Open Folder<span class="shortcut">Ctrl+Shift+O</span></div>
+                            <div class="menu-item"><i class="codicon codicon-go-to-file"></i> Open File<span class="shortcut">Ctrl+O</span></div>
                             <div class="menu-separator"></div>
                             <div class="menu-item"><i class="codicon codicon-save"></i> Save<span class="shortcut">Ctrl+S</span></div>
                             <div class="menu-item"><i class="codicon codicon-save-all"></i> Save All<span class="shortcut">Ctrl+Shift+S</span></div>
@@ -80,10 +132,57 @@
         <!-- 1. Activity Bar (Leftmost) -->
         <div id="activity-bar">
             <div class="icon active" title="Explorer"><i class="codicon codicon-files"></i></div>
-            <div class="icon" title="Search"><i class="codicon codicon-search"></i></div>
+            <div class="icon custom-icon" title="Search">
+                <svg class="calvin-binos" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Calvin's spiky hair -->
+                    <path d="M 10 4 L 8 6 L 10 5 L 12 4 L 14 5 L 16 6 L 14 4 Z" fill="currentColor" stroke="none"/>
+                    <path d="M 9 5 L 7 7 L 9 6 L 11 5 Z" fill="currentColor" stroke="none"/>
+                    <path d="M 15 5 L 17 7 L 15 6 L 13 5 Z" fill="currentColor" stroke="none"/>
+                    <!-- Calvin's head -->
+                    <circle cx="12" cy="9" r="3.5" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                    <!-- Binoculars -->
+                    <circle cx="7.5" cy="14" r="2.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="16.5" cy="14" r="2.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <rect x="9.5" y="13" width="5" height="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <!-- Lens highlights -->
+                    <circle cx="7.5" cy="13.5" r="0.8" fill="currentColor"/>
+                    <circle cx="16.5" cy="13.5" r="0.8" fill="currentColor"/>
+                    <!-- Handles -->
+                    <line x1="4.5" y1="14" x2="7.5" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="16.5" y1="14" x2="19.5" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
             <div class="icon" title="Source Control"><i class="codicon codicon-source-control"></i></div>
-            <div class="icon" title="Debug"><i class="codicon codicon-debug-alt"></i></div>
-            <div class="icon" title="Extensions"><i class="codicon codicon-extensions"></i></div>
+            <div class="icon custom-icon" title="Debug">
+                <svg class="antz-prohibited" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Prohibition circle -->
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <!-- ANTZ text (centered) -->
+                    <text x="12" y="15" font-family="monospace, sans-serif" font-size="7" font-weight="bold" text-anchor="middle" fill="currentColor">ANTZ</text>
+                    <!-- Diagonal slash (no smoking style) -->
+                    <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="icon custom-icon" title="Extensions">
+                <svg class="hair-extensions" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Hair clip base (curved) -->
+                    <path d="M 7 7 Q 12 5 17 7 L 17 11 Q 12 13 7 11 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <!-- Hair clip teeth -->
+                    <line x1="9.5" y1="8" x2="9.5" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <line x1="12" y1="7.5" x2="12" y2="9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <line x1="14.5" y1="8" x2="14.5" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <!-- Long hair extensions hanging down -->
+                    <path d="M 5 9 Q 6 12 7 15 Q 8 18 9 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 6 10 Q 7 13 8 16 Q 9 19 10 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 7 11 Q 8 14 9 17 Q 10 20 11 22" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 17 9 Q 18 12 17 15 Q 16 18 15 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 18 10 Q 17 13 16 16 Q 15 19 14 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 17 11 Q 16 14 15 17 Q 14 20 13 22" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    <!-- Additional extension strands -->
+                    <path d="M 8 10 Q 9 13 10 16" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                    <path d="M 16 10 Q 15 13 14 16" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+            </div>
         </div>
 
         <!-- 2. Side Bar (Explorer) - Now resizable -->
@@ -126,7 +225,10 @@
         <div id="resize-handle"></div>
 
         <!-- 3. Editor Area -->
-        <div id="editor-container"></div>
+        <div id="editor-area">
+            <div id="tab-bar"></div>
+            <div id="editor-container"></div>
+        </div>
 
         <!-- 4. Status Bar -->
         <div id="status-bar">

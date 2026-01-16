@@ -9,6 +9,8 @@ export class UIManager {
     private appTitle: HTMLElement | null;
     private pauseBtn: HTMLElement | null;
     private thinkingIndicator: HTMLElement | null;
+    private contextMenu: HTMLElement | null = null;
+    private selectedFilePath: string | null = null;
 
     private outputLines: string[] = ['Initializing...'];
     private isThinking: boolean = false;
@@ -17,8 +19,11 @@ export class UIManager {
         private readonly onSendMessage: (msg: string) => void,
         private readonly onStopAgent: () => void,
         private readonly onOpenFile: (path: string) => void,
+        private readonly onOpenFolder: () => void,
         private readonly onTogglePause: () => void,
-        private readonly onSkipStreaming: () => void
+        private readonly onSkipStreaming: () => void,
+        private readonly onSaveFile: (path: string, content: string) => Promise<void>,
+        private readonly onGetCurrentFile: () => { path: string | null; content: string }
     ) {
         this.agentOutput = document.getElementById('agent-output') as HTMLElement;
         this.agentInput = document.getElementById('agent-input') as HTMLInputElement;
@@ -29,7 +34,63 @@ export class UIManager {
         this.thinkingIndicator = document.getElementById('thinking-indicator');
 
         this.setupEventListeners();
+        this.setupContextMenu();
         this.updateOutput();
+    }
+
+    private setupContextMenu() {
+        // Create context menu element
+        this.contextMenu = document.createElement('div');
+        this.contextMenu.className = 'context-menu';
+        this.contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="open">
+                <i class="codicon codicon-go-to-file"></i> Open
+            </div>
+        `;
+        document.body.appendChild(this.contextMenu);
+
+        // Handle context menu item clicks
+        this.contextMenu.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            const menuItem = target.closest('.context-menu-item') as HTMLElement;
+            if (menuItem && this.selectedFilePath) {
+                const action = menuItem.dataset.action;
+                if (action === 'open') {
+                    this.onOpenFile(this.selectedFilePath);
+                }
+            }
+            this.hideContextMenu();
+        });
+
+        // Hide context menu on click outside
+        document.addEventListener('click', (e) => {
+            if (this.contextMenu && !this.contextMenu.contains(e.target as Node)) {
+                this.hideContextMenu();
+            }
+        });
+
+        // Hide context menu on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideContextMenu();
+            }
+        });
+    }
+
+    private showContextMenu(x: number, y: number, filePath: string) {
+        if (!this.contextMenu) return;
+        
+        this.selectedFilePath = filePath;
+        this.contextMenu.style.left = `${x}px`;
+        this.contextMenu.style.top = `${y}px`;
+        this.contextMenu.classList.add('visible');
+    }
+
+    private hideContextMenu() {
+        if (this.contextMenu) {
+            this.contextMenu.classList.remove('visible');
+            this.selectedFilePath = null;
+        }
     }
 
     private setupEventListeners() {
@@ -69,6 +130,118 @@ export class UIManager {
                 document.querySelectorAll('.menu-container.open').forEach(el => {
                     el.classList.remove('open');
                 });
+            }
+        });
+
+        // Setup file menu handlers
+        this.setupFileMenuHandlers();
+        
+        // Setup keyboard shortcuts
+        this.setupKeyboardShortcuts();
+    }
+
+    private setupFileMenuHandlers() {
+        // Get all menu items
+        const menuItems = document.querySelectorAll('.menu-item');
+        
+        menuItems.forEach(item => {
+            const text = item.textContent || '';
+            
+            // Open Folder
+            if (text.includes('Open Folder')) {
+                item.addEventListener('click', () => {
+                    this.onOpenFolder();
+                });
+            }
+            
+            // Open File
+            if (text.includes('Open File') && !text.includes('Folder')) {
+                item.addEventListener('click', async () => {
+                    try {
+                        // @ts-ignore
+                        const filePath = await window.electronAPI?.openFileDialog();
+                        if (filePath) {
+                            this.onOpenFile(filePath);
+                        }
+                    } catch (error) {
+                        console.error('Failed to open file dialog:', error);
+                        this.addOutputLine(`[Error] Failed to open file dialog`);
+                    }
+                });
+            }
+            
+            // Save
+            if (text.includes('Save') && !text.includes('Save All')) {
+                item.addEventListener('click', async () => {
+                    try {
+                        const { path: currentPath, content } = this.onGetCurrentFile();
+                        if (!currentPath) {
+                            // No file open, show save dialog
+                            // @ts-ignore
+                            const filePath = await window.electronAPI?.saveFileDialog();
+                            if (filePath) {
+                                await this.onSaveFile(filePath, content);
+                                this.addOutputLine(`[Save] ${filePath}`);
+                            }
+                        } else {
+                            // Save to current file
+                            await this.onSaveFile(currentPath, content);
+                            this.addOutputLine(`[Save] ${currentPath}`);
+                        }
+                    } catch (error) {
+                        console.error('Failed to save file:', error);
+                        this.addOutputLine(`[Error] Failed to save file`);
+                    }
+                });
+            }
+            
+            // Save As (handled via Save when no file is open)
+            // Close File
+            if (text.includes('Close File')) {
+                item.addEventListener('click', () => {
+                    // TODO: Implement close file functionality
+                    this.addOutputLine('[Info] Close file not yet implemented');
+                });
+            }
+        });
+    }
+
+    private setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Shift+O: Open Folder
+            if (e.ctrlKey && e.shiftKey && e.key === 'O') {
+                e.preventDefault();
+                this.onOpenFolder();
+            }
+            
+            // Ctrl+O: Open File
+            if (e.ctrlKey && !e.shiftKey && e.key === 'o') {
+                e.preventDefault();
+                const openItem = Array.from(document.querySelectorAll('.menu-item'))
+                    .find(item => item.textContent?.includes('Open File') && !item.textContent?.includes('Folder'));
+                if (openItem) {
+                    (openItem as HTMLElement).click();
+                }
+            }
+            
+            // Ctrl+S: Save
+            if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
+                e.preventDefault();
+                const saveItem = Array.from(document.querySelectorAll('.menu-item'))
+                    .find(item => item.textContent?.includes('Save') && !item.textContent?.includes('Save All'));
+                if (saveItem) {
+                    (saveItem as HTMLElement).click();
+                }
+            }
+            
+            // Ctrl+Shift+S: Save As (same as Save when no file open)
+            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+                e.preventDefault();
+                const saveItem = Array.from(document.querySelectorAll('.menu-item'))
+                    .find(item => item.textContent?.includes('Save') && !item.textContent?.includes('Save All'));
+                if (saveItem) {
+                    (saveItem as HTMLElement).click();
+                }
             }
         });
     }
@@ -226,7 +399,29 @@ export class UIManager {
             
             if (file.type === 'file') {
                 div.style.cursor = 'pointer';
-                div.addEventListener('click', () => this.onOpenFile(file.path));
+                
+                // Single click just highlights the file
+                div.addEventListener('click', () => {
+                    // Remove selected class from all items
+                    document.querySelectorAll('.file-item.selected').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    div.classList.add('selected');
+                });
+                
+                // Double click opens the file
+                div.addEventListener('dblclick', () => this.onOpenFile(file.path));
+                
+                // Right click shows context menu
+                div.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    // Highlight the file
+                    document.querySelectorAll('.file-item.selected').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    div.classList.add('selected');
+                    this.showContextMenu(e.clientX, e.clientY, file.path);
+                });
             }
             
             return div;

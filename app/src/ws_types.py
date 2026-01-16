@@ -90,6 +90,23 @@ class WSStoppedMessage(WSMessageBase):
     content: str
 
 
+class WSResumeSessionMessage(WSMessageBase):
+    """Request to resume a session from client to server."""
+    type: str = "resume_session"
+    session_id: str
+    last_correlation_id: Optional[str] = None
+
+
+class WSSessionStateMessage(WSMessageBase):
+    """Session state response from server to client."""
+    type: str = "session_state"
+    session_id: str
+    is_new: bool = False
+    agent_running: bool = False
+    last_correlation_id: Optional[str] = None
+    pending_messages: int = 0
+
+
 def parse_ws_message(data: dict) -> Optional[WSMessageBase]:
     """Parse incoming WebSocket message into typed schema."""
     msg_type = data.get("type")
@@ -102,6 +119,8 @@ def parse_ws_message(data: dict) -> Optional[WSMessageBase]:
             return WSPingMessage(**data)
         elif msg_type == "open_file":
             return WSOpenFileMessage(**data)
+        elif msg_type == "resume_session":
+            return WSResumeSessionMessage(**data)
         else:
             return None
     except Exception as e:

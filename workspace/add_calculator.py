@@ -1,34 +1,37 @@
-def main():
+def add_only_calculator():
     print("Welcome to the Add-Only Calculator!")
-    print("The maximum limit is 100,000.")
-    print("Type 'exit' or 'quit' to stop.")
-    
+    print("This calculator only performs addition.")
+    print("The maximum limit for the total sum is 100,000.")
+    print("Type 'exit' or 'quit' to stop and see the final result.")
+
     total = 0
-    limit = 100000
+    LIMIT = 100000
 
     while True:
         user_input = input(f"Current Total: {total}. Enter a number to add: ")
-        
+
         if user_input.lower() in ['exit', 'quit']:
-            print(f"Final Total: {total}")
             break
-        
+
         try:
             number = float(user_input)
+            
             if number < 0:
-                print("This is an add-only calculator. Please enter positive numbers.")
+                print("Please enter positive numbers only (it's an add-only calculator!).")
                 continue
-                
-            if total + number > limit:
-                print(f"Error: Adding {number} would exceed the limit of {limit}.")
+
+            if total + number > LIMIT:
+                print(f"Error: Adding {number} would exceed the limit of {LIMIT}.")
+                print(f"Remaining capacity: {LIMIT - total}")
             else:
                 total += number
-                # Check if it's an integer to print cleanly
-                if total.is_integer():
-                    total = int(total)
-                    
+                print(f"Added {number}. New Total: {total}")
+
         except ValueError:
             print("Invalid input. Please enter a valid number.")
 
+    print(f"Final Total: {total}")
+    print("Goodbye!")
+
 if __name__ == "__main__":
-    main()
+    add_only_calculator()

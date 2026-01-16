@@ -69,6 +69,7 @@ class Config:
     rate_limit_tpm: int = 90000             # Max tokens per minute (0 = disabled)
     circuit_breaker_threshold: int = 5      # Failures before circuit opens
     circuit_breaker_timeout: float = 60.0   # Seconds before circuit resets
+    agent_step_timeout: float = 60.0        # Seconds before agent step times out
     
     # === Tool Retry Settings ===
     tool_retry_attempts: int = 3            # Max retry attempts for failed tool calls
@@ -156,6 +157,7 @@ class Config:
             rate_limit_tpm=get_int("RATE_LIMIT_TPM", 90000),
             circuit_breaker_threshold=get_int("CIRCUIT_BREAKER_THRESHOLD", 5),
             circuit_breaker_timeout=get_float("CIRCUIT_BREAKER_TIMEOUT", 60.0),
+            agent_step_timeout=get_float("AGENT_STEP_TIMEOUT", 60.0),
             
             # Tool Retry
             tool_retry_attempts=get_int("TOOL_RETRY_ATTEMPTS", 3),

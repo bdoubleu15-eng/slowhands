@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/dub/projects/"
+      ]
+    },
+    "sequentialthinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "terminal": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-terminal"
+      ]
+    },
+    "codeanalysis": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-code-analysis",
+        "/dub/projects/"
+      ]
+    }
+  }
+}

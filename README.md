@@ -6,8 +6,8 @@ An AI coding assistant that shows its work - watch the agent think, plan, and wr
 
 - **Visible AI Reasoning**: Watch the agent's thought process as it codes
 - **Real-time Code Streaming**: See code appear character-by-character in the editor
-- **Monaco Editor**: Full-featured code editor with syntax highlighting
-- **Professional UI**: VS Code-inspired interface with Codicons, dropdown menus, and smooth transitions
+- **Monaco Editor**: Full-featured code editor with syntax highlighting and responsive, native-feeling input
+- **Professional UI**: VS Code-inspired interface with Codicons, dropdown menus, and polished loading animations
 - **Multi-Provider LLM Support**: Works with Gemini, OpenAI, Anthropic, or DeepSeek
 - **Tool Integration**: File operations, code execution, Git, terminal, and web search
 

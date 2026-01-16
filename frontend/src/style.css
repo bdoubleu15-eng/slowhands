@@ -21,9 +21,9 @@
     display: grid;
     grid-template-areas: 
         "titlebar titlebar titlebar titlebar"
-        "activity sidebar resize editor"
+        "activity sidebar resize editorarea"
         "status status status status";
-    grid-template-columns: 50px var(--sidebar-width) 4px 1fr;
+    grid-template-columns: 54px var(--sidebar-width) 6px 1fr;
     grid-template-rows: 32px 1fr 22px;
     height: 100vh;
     width: 100vw;
@@ -239,8 +239,8 @@
 }
 
 .icon {
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -253,7 +253,51 @@
 }
 
 .icon .codicon {
-    font-size: 22px;
+    font-size: 28px;
+}
+
+/* Custom icons */
+.icon.custom-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon.custom-icon svg {
+    width: 36px;
+    height: 36px;
+    display: block;
+    color: inherit;
+}
+
+/* Calvin with binoculars icon */
+.icon.custom-icon .calvin-binos {
+    color: var(--text-primary);
+}
+
+.icon.custom-icon:hover .calvin-binos,
+.icon.custom-icon.active .calvin-binos {
+    color: var(--text-primary);
+}
+
+/* ANTZ with prohibition icon */
+.icon.custom-icon .antz-prohibited {
+    color: var(--text-primary);
+}
+
+.icon.custom-icon:hover .antz-prohibited,
+.icon.custom-icon.active .antz-prohibited {
+    color: var(--text-primary);
+}
+
+/* Hair extensions icon */
+.icon.custom-icon .hair-extensions {
+    color: var(--text-primary);
+}
+
+.icon.custom-icon:hover .hair-extensions,
+.icon.custom-icon.active .hair-extensions {
+    color: var(--text-primary);
 }
 
 .icon:hover { 
@@ -350,8 +394,58 @@
     background-color: var(--hover-bg); 
 }
 
+.file-item.selected {
+    background-color: var(--active-bg);
+}
+
 .file-item.indent { 
     padding-left: 24px; 
+}
+
+/* =====================================================
+   CONTEXT MENU
+   ===================================================== */
+.context-menu {
+    position: fixed;
+    min-width: 150px;
+    background: var(--menu-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: var(--menu-shadow);
+    padding: 4px 0;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95);
+    transition: opacity var(--transition-fast), 
+                transform var(--transition-fast), 
+                visibility var(--transition-fast);
+}
+
+.context-menu.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+}
+
+.context-menu-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background-color var(--transition-fast);
+}
+
+.context-menu-item:hover {
+    background-color: var(--hover-bg);
+}
+
+.context-menu-item .codicon {
+    font-size: 14px;
+    color: var(--text-secondary);
 }
 
 /* =====================================================
@@ -359,9 +453,24 @@
    ===================================================== */
 #resize-handle {
     grid-area: resize;
+    width: 6px;
     background-color: var(--border-color);
     cursor: col-resize;
     transition: background-color var(--transition-normal);
+    position: relative;
+    z-index: 100;
+}
+
+/* Expand the clickable/hover area */
+#resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -6px;
+    right: -6px;
+    cursor: col-resize;
+    z-index: 100;
 }
 
 #resize-handle:hover,
@@ -374,6 +483,19 @@
     background-color: var(--border-color);
     cursor: row-resize;
     transition: background-color var(--transition-normal);
+    position: relative;
+    z-index: 10;
+}
+
+/* Expand the clickable/hover area */
+#agent-resize-handle::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -4px;
+    bottom: -4px;
+    cursor: row-resize;
 }
 
 #agent-resize-handle:hover,
@@ -602,10 +724,130 @@
 }
 
 /* =====================================================
+   EDITOR AREA
+   ===================================================== */
+#editor-area {
+    grid-area: editorarea;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-editor);
+    overflow: hidden;
+}
+
+/* =====================================================
+   TAB BAR
+   ===================================================== */
+#tab-bar {
+    display: none;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    height: 35px;
+    align-items: stretch;
+}
+
+#tab-bar::-webkit-scrollbar {
+    height: 3px;
+}
+
+#tab-bar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 100%;
+    background-color: transparent;
+    border-right: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    transition: background-color var(--transition-fast);
+    position: relative;
+}
+
+.tab:hover {
+    background-color: var(--hover-bg);
+}
+
+.tab.active {
+    background-color: var(--bg-editor);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: -1px;
+}
+
+.tab .codicon {
+    font-size: 14px;
+}
+
+.tab-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+    opacity: 1;
+}
+
+.tab-close:hover {
+    background-color: var(--active-bg);
+    color: var(--text-primary);
+}
+
+.tab-close .codicon {
+    font-size: 12px;
+}
+
+.dirty-indicator {
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tab.dirty .tab-close {
+    display: none;
+}
+
+.tab.dirty:hover .tab-close {
+    display: flex;
+}
+
+.tab.dirty:hover .dirty-indicator {
+    display: none;
+}
+
+/* =====================================================
    EDITOR
    ===================================================== */
 #editor-container {
-    grid-area: editor;
+    flex: 1;
     background-color: var(--bg-editor);
     overflow: hidden;
 }
@@ -700,4 +942,46 @@ input:focus-visible {
 
 .pulse {
     animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* =====================================================
+   LOADING OVERLAY
+   ===================================================== */
+
+.loading-hands {
+    text-align: center;
+}
+
+.hands-svg {
+    width: 160px;
+    height: 160px;
+    margin-bottom: 24px;
+}
+
+@keyframes rotate-left {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes rotate-right {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+}
+
+.left-hand {
+    transform-origin: 50% 50%;
+    animation: rotate-left 4s linear infinite;
+}
+
+.right-hand {
+    transform-origin: 50% 50%;
+    animation: rotate-right 4s linear infinite;
+}
+
+.loading-text {
+    font-size: 16px;
+    color: #0078d4;
+    font-weight: 500;
+    margin-top: 16px;
+    opacity: 0.8;
 }

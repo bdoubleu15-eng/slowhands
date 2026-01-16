@@ -5,6 +5,107 @@ import { UIManager } from './ui';
 import { WSMessage } from './types';
 
 // ============================================
+// Global Error Handlers
+// ============================================
+
+// Track recent errors to avoid spam
+const recentErrors: string[] = [];
+const MAX_RECENT_ERRORS = 10;
+const ERROR_DEDUP_WINDOW_MS = 5000;
+
+function logError(source: string, message: string, details?: any): void {
+    const errorKey = `${source}:${message}`;
+    const now = Date.now();
+    
+    // Dedup: skip if we've seen this exact error recently
+    if (recentErrors.includes(errorKey)) {
+        return;
+    }
+    
+    // Add to recent errors and clean up old ones
+    recentErrors.push(errorKey);
+    if (recentErrors.length > MAX_RECENT_ERRORS) {
+        recentErrors.shift();
+    }
+    
+    // Log to console
+    console.error(`[${source}]`, message, details || '');
+    
+    // Try to show in UI if available (uiManager may not be initialized yet)
+    try {
+        const outputEl = document.getElementById('output');
+        if (outputEl) {
+            const errorLine = document.createElement('div');
+            errorLine.className = 'output-line error';
+            errorLine.textContent = `[Error] ${message}`;
+            outputEl.appendChild(errorLine);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+    } catch {
+        // UI not ready, that's fine
+    }
+}
+
+// Global error handler for uncaught errors
+window.onerror = function(
+    message: string | Event,
+    source?: string,
+    lineno?: number,
+    colno?: number,
+    error?: Error
+): boolean {
+    const errorMessage = typeof message === 'string' ? message : message.type;
+    const location = source ? `${source}:${lineno}:${colno}` : 'unknown';
+    
+    logError('UncaughtError', `${errorMessage} at ${location}`, {
+        stack: error?.stack,
+        source,
+        lineno,
+        colno
+    });
+    
+    // Return false to allow default error handling (logging to console)
+    return false;
+};
+
+// Handler for unhandled promise rejections
+window.onunhandledrejection = function(event: PromiseRejectionEvent): void {
+    const reason = event.reason;
+    let message: string;
+    let stack: string | undefined;
+    
+    if (reason instanceof Error) {
+        message = reason.message;
+        stack = reason.stack;
+    } else if (typeof reason === 'string') {
+        message = reason;
+    } else {
+        message = String(reason);
+    }
+    
+    logError('UnhandledRejection', message, { stack, reason });
+    
+    // Prevent the default handling (which would log to console again)
+    event.preventDefault();
+};
+
+// ============================================
+// Loading Overlay
+// ============================================
+let loadingOverlayTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function hideLoadingOverlay() {
+    document.body.classList.remove('loading');
+    if (loadingOverlayTimeout) {
+        clearTimeout(loadingOverlayTimeout);
+        loadingOverlayTimeout = null;
+    }
+}
+
+// Safety: hide loading overlay after 5 seconds in case something goes wrong
+loadingOverlayTimeout = setTimeout(hideLoadingOverlay, 5000);
+
+// ============================================
 // Application Initialization
 // ============================================
 
@@ -12,7 +113,14 @@ const API_URL = 'http://127.0.0.1:8765';
 const WS_URL = 'ws://127.0.0.1:8765/ws';
 
 const editorContainer = document.getElementById('editor-container') as HTMLElement;
+const tabBarElement = document.getElementById('tab-bar') as HTMLElement;
 const editorManager = new EditorManager(editorContainer);
+
+// Set up tab bar
+editorManager.setTabBarElement(tabBarElement);
+
+// Declare apiClient variable first (will be initialized after uiManager)
+let apiClient: APIClient;
 
 const uiManager = new UIManager(
     // onSendMessage
@@ -29,13 +137,47 @@ const uiManager = new UIManager(
         uiManager.addOutputLine('Stopping...');
     },
     // onOpenFile
-    async (path) => {
+    async (filePath) => {
         try {
-            const data = await apiClient.readFile(path);
-            editorManager.updateFile(path, data.content);
-            uiManager.addOutputLine(`[Open] ${path}`);
+            // Check if we can open more tabs
+            if (!editorManager.canOpenMoreTabs()) {
+                uiManager.addOutputLine(`[Error] Maximum ${editorManager.MAX_TABS} tabs open. Close a tab first.`);
+                return;
+            }
+            
+            // Try to read via Electron first (for files outside workspace)
+            // @ts-ignore
+            const electronResult = await window.electronAPI?.readFile(filePath);
+            if (electronResult?.success) {
+                editorManager.openFile(filePath, electronResult.content || '');
+                uiManager.addOutputLine(`[Open] ${filePath}`);
+                return;
+            }
+            
+            // Fallback to API (for workspace files)
+            const data = await apiClient.readFile(filePath);
+            editorManager.openFile(filePath, data.content);
+            uiManager.addOutputLine(`[Open] ${filePath}`);
         } catch (e) {
-            uiManager.addOutputLine(`[Error] Failed to open: ${path}`);
+            uiManager.addOutputLine(`[Error] Failed to open: ${filePath}`);
+        }
+    },
+    // onOpenFolder
+    async () => {
+        try {
+            // @ts-ignore
+            const folderPath = await window.electronAPI?.openFolderDialog();
+            if (folderPath) {
+                uiManager.addOutputLine(`[Open Folder] ${folderPath}`);
+                
+                // Call backend to set workspace
+                const result = await apiClient.openWorkspace(folderPath);
+                uiManager.renderFileTree(result.files);
+                uiManager.addOutputLine(`[Workspace] Opened: ${result.workspace}`);
+            }
+        } catch (error: any) {
+            console.error('Failed to open folder:', error);
+            uiManager.addOutputLine(`[Error] Failed to open folder: ${error.message}`);
         }
     },
     // onTogglePause
@@ -51,10 +193,34 @@ const uiManager = new UIManager(
             uiManager.updatePauseButton(false, false);
             uiManager.addOutputLine('[Skip] Skipped to end');
         }
+    },
+    // onSaveFile
+    async (filePath: string, content: string) => {
+        try {
+            // @ts-ignore
+            const result = await window.electronAPI?.writeFile(filePath, content);
+            if (result?.success) {
+                // Mark the current tab as clean
+                editorManager.markCurrentTabClean();
+                // Refresh file browser to show new file
+                refreshFileBrowser();
+            } else {
+                throw new Error(result?.error || 'Failed to save file');
+            }
+        } catch (error: any) {
+            throw new Error(`Failed to save file: ${error.message}`);
+        }
+    },
+    // onGetCurrentFile
+    () => {
+        return {
+            path: editorManager.getCurrentFilePath(),
+            content: editorManager.getCurrentContent()
+        };
     }
 );
 
-const apiClient = new APIClient(
+apiClient = new APIClient(
     API_URL,
     WS_URL,
     // onMessage
@@ -70,6 +236,9 @@ const apiClient = new APIClient(
 
 // Link editor manager to UI manager
 editorManager.onFileChanged = (path) => uiManager.updateFileNameDisplay(path);
+
+// Hide loading overlay now that UI is ready
+hideLoadingOverlay();
 
 function handleAgentMessage(data: WSMessage) {
     // Hide thinking indicator when we get any response
@@ -118,6 +287,11 @@ function handleAgentMessage(data: WSMessage) {
             editorManager.updateFile(data.path, data.content);
             uiManager.addOutputLine(`[Open] ${data.path}`);
             break;
+        case 'server_shutdown':
+            uiManager.setThinking(false);
+            uiManager.addOutputLine('[Server] Server is shutting down...');
+            uiManager.updateConnectionStatus(false);
+            break;
     }
 }
 
@@ -154,7 +328,8 @@ agentResizeHandle?.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
     if (isResizing && appContainer) {
-        const newWidth = Math.max(120, Math.min(400, e.clientX - 50));
+        // Activity bar is 54px wide
+        const newWidth = Math.max(120, Math.min(400, e.clientX - 54));
         appContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
         editorManager.layout();
     }

@@ -1,0 +1,25 @@
+{
+  "name": "slowhands",
+  "version": "1.0.0",
+  "description": "SlowHands - AI Coding Assistant with VS Code-style Interface",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "start": "electron .",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "keywords": ["ai", "coding", "assistant", "electron", "monaco"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.4.0",
+    "monaco-editor": "^0.55.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  }
+}

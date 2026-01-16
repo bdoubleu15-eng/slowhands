@@ -1,14 +1,14 @@
 """
 Connection Manager
 
-Manages WebSocket connections and message queuing.
+Manages WebSocket connections, sessions, and message queuing.
 """
 
 import asyncio
 import time
 import uuid
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from dataclasses import dataclass, field
 
 from fastapi import WebSocket
@@ -18,6 +18,21 @@ from .config import load_config
 from .logging_config import get_logger
 
 logger = get_logger("connection_manager")
+
+
+@dataclass
+class SessionState:
+    """Session state for resumable connections."""
+    session_id: str
+    created_at: float = field(default_factory=time.time)
+    last_activity: float = field(default_factory=time.time)
+    last_correlation_id: Optional[str] = None
+    agent_running: bool = False
+    pending_messages: List[dict] = field(default_factory=list)
+    
+    # Maximum pending messages to store per session
+    MAX_PENDING_MESSAGES: int = 20
+
 
 @dataclass
 class ConnectionInfo:
@@ -30,13 +45,18 @@ class ConnectionInfo:
     last_ping_latency_ms: Optional[float] = None
     ping_sent_at: Optional[float] = None
     reconnect_count: int = 0
+    session_id: Optional[str] = None  # Link to session
 
 
 class ConnectionManager:
-    """Manages WebSocket connections and message queuing."""
+    """Manages WebSocket connections, sessions, and message queuing."""
+    
+    # Session expiry time (1 hour)
+    SESSION_EXPIRY_SECONDS: float = 3600.0
     
     def __init__(self, message_queue_max_size: int = 100, connection_timeout: float = 300.0):
         self.connections: Dict[WebSocket, ConnectionInfo] = {}
+        self.sessions: Dict[str, SessionState] = {}  # session_id -> SessionState
         self.message_queue = MessageQueue(max_size=message_queue_max_size)
         self.connection_timeout = connection_timeout  # Seconds before considering connection stale
         self._cleanup_task: Optional[asyncio.Task] = None
@@ -46,17 +66,141 @@ class ConnectionManager:
         """Get list of active WebSocket connections."""
         return list(self.connections.keys())
     
+    # ============================================
+    # Session Management
+    # ============================================
+    
+    def create_session(self) -> SessionState:
+        """Create a new session."""
+        session_id = f"sess_{uuid.uuid4().hex[:12]}"
+        session = SessionState(session_id=session_id)
+        self.sessions[session_id] = session
+        logger.info(f"Created new session: {session_id}")
+        return session
+    
+    def get_session(self, session_id: str) -> Optional[SessionState]:
+        """Get an existing session by ID."""
+        session = self.sessions.get(session_id)
+        if session:
+            # Check if session has expired
+            if time.time() - session.last_activity > self.SESSION_EXPIRY_SECONDS:
+                logger.info(f"Session {session_id} has expired, removing")
+                del self.sessions[session_id]
+                return None
+            return session
+        return None
+    
+    def get_or_create_session(self, session_id: Optional[str] = None) -> tuple[SessionState, bool]:
+        """
+        Get an existing session or create a new one.
+        
+        Returns:
+            Tuple of (session, is_new) where is_new indicates if a new session was created
+        """
+        if session_id:
+            session = self.get_session(session_id)
+            if session:
+                session.last_activity = time.time()
+                return session, False
+        
+        # Create new session
+        session = self.create_session()
+        return session, True
+    
+    def link_connection_to_session(self, websocket: WebSocket, session_id: str) -> bool:
+        """Link a WebSocket connection to a session."""
+        if websocket not in self.connections:
+            return False
+        
+        session = self.get_session(session_id)
+        if not session:
+            return False
+        
+        self.connections[websocket].session_id = session_id
+        logger.debug(f"Linked connection {self.connections[websocket].connection_id} to session {session_id}")
+        return True
+    
+    def add_pending_message(self, session_id: str, message: dict) -> bool:
+        """Add a pending message to a session for potential replay on reconnect."""
+        session = self.get_session(session_id)
+        if not session:
+            return False
+        
+        # Limit pending messages
+        if len(session.pending_messages) >= session.MAX_PENDING_MESSAGES:
+            session.pending_messages.pop(0)  # Remove oldest
+        
+        session.pending_messages.append(message)
+        return True
+    
+    def get_pending_messages(self, session_id: str, since_correlation_id: Optional[str] = None) -> List[dict]:
+        """Get pending messages for a session, optionally filtering by correlation ID."""
+        session = self.get_session(session_id)
+        if not session:
+            return []
+        
+        if not since_correlation_id:
+            return session.pending_messages.copy()
+        
+        # Find messages after the given correlation ID
+        found = False
+        result = []
+        for msg in session.pending_messages:
+            if found:
+                result.append(msg)
+            elif msg.get("correlation_id") == since_correlation_id:
+                found = True
+        
+        return result
+    
+    def clear_pending_messages(self, session_id: str) -> None:
+        """Clear pending messages for a session."""
+        session = self.get_session(session_id)
+        if session:
+            session.pending_messages.clear()
+    
+    def update_session_state(self, session_id: str, agent_running: bool = None, 
+                            last_correlation_id: str = None) -> None:
+        """Update session state."""
+        session = self.get_session(session_id)
+        if not session:
+            return
+        
+        session.last_activity = time.time()
+        if agent_running is not None:
+            session.agent_running = agent_running
+        if last_correlation_id is not None:
+            session.last_correlation_id = last_correlation_id
+    
+    def cleanup_expired_sessions(self) -> int:
+        """Remove expired sessions. Returns count of removed sessions."""
+        now = time.time()
+        expired = [
+            sid for sid, session in self.sessions.items()
+            if now - session.last_activity > self.SESSION_EXPIRY_SECONDS
+        ]
+        
+        for sid in expired:
+            del self.sessions[sid]
+        
+        if expired:
+            logger.info(f"Cleaned up {len(expired)} expired session(s)")
+        
+        return len(expired)
+    
     def _start_cleanup_task(self):
         """Start background task to clean up stale connections."""
         if self._cleanup_task is None or self._cleanup_task.done():
             self._cleanup_task = asyncio.create_task(self._cleanup_stale_connections())
     
     async def _cleanup_stale_connections(self):
-        """Background task to periodically clean up stale connections."""
+        """Background task to periodically clean up stale connections and sessions."""
         while True:
             try:
                 await asyncio.sleep(30)  # Check every 30 seconds
                 await self.check_and_cleanup_stale_connections()
+                # Also cleanup expired sessions
+                self.cleanup_expired_sessions()
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -155,17 +299,25 @@ class ConnectionManager:
             })
         return stats
     
-    async def broadcast(self, message: dict, correlation_id: Optional[str] = None):
+    async def broadcast(self, message: dict, correlation_id: Optional[str] = None, 
+                       session_id: Optional[str] = None):
         """
         Send message to all connected clients.
         If no clients are connected, queue the message.
+        Also stores important messages in session for replay on reconnect.
         
         Args:
             message: Message dict to broadcast
             correlation_id: Optional correlation ID for tracking
+            session_id: Optional session ID to store message for replay
         """
         msg_type = message.get("type", "unknown")
         cid = correlation_id or message.get("correlation_id", "no-cid")
+        
+        # Store message in session for potential replay (for important message types)
+        if session_id and msg_type in ("step", "complete", "error", "stopped"):
+            self.add_pending_message(session_id, message)
+            self.update_session_state(session_id, last_correlation_id=cid)
         
         if not self.connections:
             # No connections available, queue the message
@@ -204,3 +356,25 @@ class ConnectionManager:
         if not self.connections:
             await self.message_queue.enqueue(message)
             logger.info(f"[{cid}] All connections failed, queued {msg_type}. Queue size: {self.message_queue.size()}")
+    
+    def get_session_stats(self) -> dict:
+        """Get statistics about sessions."""
+        now = time.time()
+        active_sessions = sum(
+            1 for s in self.sessions.values()
+            if now - s.last_activity <= self.SESSION_EXPIRY_SECONDS
+        )
+        return {
+            "total_sessions": len(self.sessions),
+            "active_sessions": active_sessions,
+            "sessions": [
+                {
+                    "session_id": s.session_id,
+                    "age_seconds": round(now - s.created_at, 1),
+                    "last_activity_seconds_ago": round(now - s.last_activity, 1),
+                    "agent_running": s.agent_running,
+                    "pending_messages": len(s.pending_messages),
+                }
+                for s in self.sessions.values()
+            ]
+        }

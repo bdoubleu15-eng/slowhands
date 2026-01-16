@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SlowHands</title>
+    <!-- Basic Reset -->
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; color: #1e1e1e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+        <!-- Title Bar (Draggable) -->
+        <div id="title-bar">
+            <div class="title-bar-drag">
+                <div class="app-icon">⚡</div>
+                <div class="toolbar">
+                    <button class="toolbar-btn">File</button>
+                    <button class="toolbar-btn">Edit</button>
+                    <button class="toolbar-btn">View</button>
+                    <button class="toolbar-btn">Help</button>
+                    <span class="toolbar-separator">|</span>
+                    <button class="toolbar-btn" id="pause-btn" title="Pause/Resume streaming (Space)">⏸</button>
+                    <button class="toolbar-btn" id="skip-btn" title="Skip to end (Escape)">⏭</button>
+                </div>
+                <div class="app-title">SlowHands</div>
+            </div>
+            <div class="window-controls">
+                <button class="win-btn minimize" id="minimize-btn">─</button>
+                <button class="win-btn maximize" id="maximize-btn">□</button>
+                <button class="win-btn close" id="close-btn">✕</button>
+            </div>
+        </div>
+
+        <!-- 1. Activity Bar (Leftmost) -->
+        <div id="activity-bar">
+            <div class="icon active">📄</div>
+            <div class="icon">🔍</div>
+            <div class="icon">🌿</div>
+            <div class="icon">🐞</div>
+            <div class="icon">🧩</div>
+        </div>
+
+        <!-- 2. Side Bar (Explorer) - Now resizable -->
+        <div id="sidebar">
+            <div class="sidebar-header">EXPLORER</div>
+            <div class="sidebar-content">
+                <div class="file-item">📁 app</div>
+                <div class="file-item indent">📁 src</div>
+                <div class="file-item indent">📄 agent.py</div>
+                <div class="file-item indent">📄 llm.py</div>
+                <div class="file-item">📁 frontend</div>
+                <div class="file-item indent">📄 main.ts</div>
+                <div class="file-item">📄 README.md</div>
+            </div>
+            
+            <!-- Agent Panel at bottom of sidebar (resizable) -->
+            <div id="agent-panel">
+                <div id="agent-resize-handle"></div>
+                <div class="agent-header">AGENT</div>
+                <div id="agent-output">
+                    <div class="output-line">Ready...</div>
+                </div>
+                <div class="agent-input-wrap">
+                    <input type="text" id="agent-input" placeholder="Ask the agent..." />
+                    <button id="agent-send">→</button>
+                    <button id="agent-stop" title="Stop agent">⏹</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div id="resize-handle"></div>
+
+        <!-- 3. Editor Area -->
+        <div id="editor-container"></div>
+
+        <!-- 4. Status Bar -->
+        <div id="status-bar">
+            <div class="left">
+                <span>○ Offline</span>
+                <span>SlowHands</span>
+            </div>
+            <div class="right">
+                <span>Ln 1, Col 1</span>
+                <span>UTF-8</span>
+                <span>Gemini</span>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

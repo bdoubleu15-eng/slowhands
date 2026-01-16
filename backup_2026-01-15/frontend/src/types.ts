@@ -8,13 +8,6 @@ export interface FileItem {
     children?: FileItem[];
 }
 
-export interface EditorTab {
-    id: string;
-    path: string;
-    name: string;
-    isDirty: boolean;
-}
-
 // WebSocket Messages
 
 export interface WSMessageBase {
@@ -89,11 +82,6 @@ export interface WSStoppedMessage extends WSMessageBase {
     content: string;
 }
 
-export interface WSServerShutdownMessage extends WSMessageBase {
-    type: 'server_shutdown';
-    content: string;
-}
-
 export type WSMessage = 
     | WSChatMessage
     | WSStopMessage
@@ -104,5 +92,4 @@ export type WSMessage =
     | WSStepMessage
     | WSCompleteMessage
     | WSErrorMessage
-    | WSStoppedMessage
-    | WSServerShutdownMessage;
+    | WSStoppedMessage;

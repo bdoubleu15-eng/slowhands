@@ -1,29 +1,38 @@
-def add_only_calculator():
-    print("--- Add-Only Calculator (Max 100,000) ---")
-    print("Type 'exit' or 'quit' to stop.")
+def main():
+    print("Welcome to the Add-Only Calculator!")
+    print("This calculator only performs addition.")
+    print("The maximum limit for the sum is 100,000.")
+    print("Type 'exit' or 'quit' to stop the program.\n")
+
+    total = 0.0
+    limit = 100000.0
 
     while True:
-        try:
-            user_input1 = input("\nEnter first number: ")
-            if user_input1.lower() in ['exit', 'quit']:
-                break
-            
-            user_input2 = input("Enter second number: ")
-            if user_input2.lower() in ['exit', 'quit']:
-                break
+        user_input = input(f"Current Total: {total}\nEnter a number to add: ").strip()
 
-            num1 = float(user_input1)
-            num2 = float(user_input2)
+        if user_input.lower() in ('exit', 'quit'):
+            print(f"\nFinal Total: {total}")
+            print("Goodbye!")
+            break
+
+        try:
+            number = float(user_input)
             
-            result = num1 + num2
-            
-            if result > 100000:
-                print(f"Error: Result {result} exceeds the limit of 100,000.")
+            if number < 0:
+                print("Error: This is an add-only calculator. Please enter positive numbers.")
+                continue
+
+            if total + number > limit:
+                print(f"Error: Adding {number} would exceed the limit of {limit:,.0f}.")
+                print(f"Remaining capacity: {limit - total}")
             else:
-                print(f"Result: {result}")
-                
+                total += number
+                print(f"Added {number}. New total: {total}")
+
         except ValueError:
-            print("Invalid input. Please enter numeric values.")
+            print("Invalid input. Please enter a valid number.")
+        
+        print("-" * 30)
 
 if __name__ == "__main__":
-    add_only_calculator()
+    main()
