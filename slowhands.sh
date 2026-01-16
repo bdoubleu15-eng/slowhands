@@ -68,100 +68,92 @@ wait_for_service() {
     return 1
 }
 
-# Step 1: Check and start backend
+# Step 1: Always restart backend for development
 echo "📡 Backend Service"
 echo "------------------"
 
-BACKEND_PID=""
-if check_service "$BACKEND_URL/health" "backend"; then
-    BACKEND_PID=$(get_port_pid 8765)
-    echo -e "${GREEN}✅ Backend is already running (PID: $BACKEND_PID)${NC}"
-else
-    echo "🚀 Starting backend server..."
-    
-    # Check if port is in use by something else
-    if check_port 8765; then
-        OLD_PID=$(get_port_pid 8765)
-        echo -e "${YELLOW}⚠️  Port 8765 is in use (PID: $OLD_PID), killing it...${NC}"
-        kill $OLD_PID 2>/dev/null
-        sleep 1
-    fi
-    
-    cd "$PROJECT_DIR"
-    
-    # Check if venv exists
-    if [ ! -d "venv" ]; then
-        echo -e "${RED}❌ Virtual environment not found!${NC}"
-        echo "   Please create it with: python3 -m venv venv"
-        exit 1
-    fi
-    
-    source venv/bin/activate
-    
-    # Check if dependencies are installed
-    if ! python -c "import uvicorn" 2>/dev/null; then
-        echo "📦 Installing backend dependencies..."
-        cd app
-        pip install -q -r requirements.txt
-        cd ..
-    fi
-    
+echo -e "${YELLOW}🔄 Always restarting backend for development...${NC}"
+
+# Kill existing backend if running
+if check_port 8765; then
+    OLD_PID=$(get_port_pid 8765)
+    echo -e "${YELLOW}⚠️  Killing existing backend (PID: $OLD_PID)${NC}"
+    kill $OLD_PID 2>/dev/null
+    sleep 2
+fi
+
+echo "🚀 Starting backend server..."
+
+cd "$PROJECT_DIR"
+
+# Check if venv exists
+if [ ! -d "venv" ]; then
+    echo -e "${RED}❌ Virtual environment not found!${NC}"
+    echo "   Please create it with: python3 -m venv venv"
+    exit 1
+fi
+
+source venv/bin/activate
+
+# Check if dependencies are installed
+if ! python -c "import uvicorn" 2>/dev/null; then
+    echo "📦 Installing backend dependencies..."
     cd app
-    python run_server.py > /tmp/slowhands-backend.log 2>&1 &
-    BACKEND_PID=$!
-    cd "$PROJECT_DIR"
-    
-    echo "   Started backend (PID: $BACKEND_PID)"
-    echo "   Logs: /tmp/slowhands-backend.log"
-    
-    if ! wait_for_service "$BACKEND_URL/health" "Backend" $MAX_WAIT_BACKEND; then
-        echo -e "${RED}❌ Failed to start backend${NC}"
-        echo "   Check logs: /tmp/slowhands-backend.log"
-        exit 1
-    fi
+    pip install -q -r requirements.txt
+    cd ..
+fi
+
+cd app
+python run_server.py > /tmp/slowhands-backend.log 2>&1 &
+BACKEND_PID=$!
+cd "$PROJECT_DIR"
+
+echo "   Started backend (PID: $BACKEND_PID)"
+echo "   Logs: /tmp/slowhands-backend.log"
+
+if ! wait_for_service "$BACKEND_URL/health" "Backend" $MAX_WAIT_BACKEND; then
+    echo -e "${RED}❌ Failed to start backend${NC}"
+    echo "   Check logs: /tmp/slowhands-backend.log"
+    exit 1
 fi
 
 echo ""
 
-# Step 2: Check and start frontend dev server
+# Step 2: Always restart frontend dev server for development
 echo "🎨 Frontend Dev Server"
 echo "----------------------"
 
-FRONTEND_PID=""
-if check_service "$FRONTEND_URL" "frontend"; then
-    FRONTEND_PID=$(get_port_pid 5173)
-    echo -e "${GREEN}✅ Frontend dev server is already running (PID: $FRONTEND_PID)${NC}"
-else
-    echo "🚀 Starting frontend dev server..."
-    
-    # Check if port is in use by something else
-    if check_port 5173; then
-        OLD_PID=$(get_port_pid 5173)
-        echo -e "${YELLOW}⚠️  Port 5173 is in use (PID: $OLD_PID), killing it...${NC}"
-        kill $OLD_PID 2>/dev/null
-        sleep 1
-    fi
-    
-    cd "$PROJECT_DIR/frontend"
-    
-    # Install dependencies if needed
-    if [ ! -d "node_modules" ]; then
-        echo "📦 Installing frontend dependencies..."
-        npm install
-    fi
-    
-    # Start frontend dev server
-    npm run dev > /tmp/slowhands-frontend.log 2>&1 &
-    FRONTEND_PID=$!
-    
-    echo "   Started frontend dev server (PID: $FRONTEND_PID)"
-    echo "   Logs: /tmp/slowhands-frontend.log"
-    
-    if ! wait_for_service "$FRONTEND_URL" "Frontend" $MAX_WAIT_FRONTEND; then
-        echo -e "${RED}❌ Failed to start frontend${NC}"
-        echo "   Check logs: /tmp/slowhands-frontend.log"
-        exit 1
-    fi
+echo -e "${YELLOW}🔄 Always restarting frontend dev server for development...${NC}"
+
+# Kill existing frontend if running
+if check_port 5173; then
+    OLD_PID=$(get_port_pid 5173)
+    echo -e "${YELLOW}⚠️  Killing existing frontend (PID: $OLD_PID)${NC}"
+    kill $OLD_PID 2>/dev/null
+    sleep 2
+fi
+
+echo "🚀 Starting frontend dev server..."
+
+cd "$PROJECT_DIR/frontend"
+
+# Install dependencies if needed
+if [ ! -d "node_modules" ]; then
+    echo "📦 Installing frontend dependencies..."
+    npm install
+fi
+
+# Start frontend dev server
+npm run dev > /tmp/slowhands-frontend.log 2>&1 &
+FRONTEND_PID=$!
+
+echo "   Started frontend dev server (PID: $FRONTEND_PID)"
+echo "   Logs: /tmp/slowhands-frontend.log"
+
+if ! wait_for_service "$FRONTEND_URL" "Frontend" $MAX_WAIT_FRONTEND; then
+    echo -e "${RED}❌ Failed to start frontend${NC}"
+    echo "   Check logs: /tmp/slowhands-frontend.log"
+    exit 1
 fi
 
 echo ""
@@ -207,7 +199,7 @@ fi
 echo ""
 
 # Summary
-echo "============================"
+echo "================================"
 echo -e "${GREEN}🖐️ SlowHands is running!${NC}"
 echo ""
 echo "   Backend:  $BACKEND_URL"
@@ -224,10 +216,10 @@ echo "     Backend:  /tmp/slowhands-backend.log"
 echo "     Frontend: /tmp/slowhands-frontend.log"
 echo "     Electron: /tmp/slowhands-electron.log"
 echo ""
-echo "============================"
+echo "================================"
 echo ""
 echo -e "${YELLOW}💡 Tip: Services will keep running in the background${NC}"
-echo -e "${YELLOW}   To stop all services, run: pkill -f 'slowhands\|run_server\|vite\|electron'${NC}"
+echo -e "${YELLOW}   To stop all services, run: pkill -f 'slowhands|run_server|vite|electron'${NC}"
 echo ""
 
 # Exit successfully (don't wait for processes)
