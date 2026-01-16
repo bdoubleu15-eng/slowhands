@@ -107,6 +107,7 @@ class WSSessionStateMessage(WSMessageBase):
     pending_messages: int = 0
 
 
+
 def parse_ws_message(data: dict) -> Optional[WSMessageBase]:
     """Parse incoming WebSocket message into typed schema."""
     msg_type = data.get("type")
@@ -121,6 +122,8 @@ def parse_ws_message(data: dict) -> Optional[WSMessageBase]:
             return WSOpenFileMessage(**data)
         elif msg_type == "resume_session":
             return WSResumeSessionMessage(**data)
+        elif msg_type == "transcribe":
+            return WSTranscribeMessage(**data)
         else:
             return None
     except Exception as e:

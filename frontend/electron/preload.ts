@@ -16,6 +16,9 @@ declare global {
       saveFileDialog: (defaultFileName?: string) => Promise<string | null>
       readFile: (filePath: string) => Promise<{ success: boolean; content?: string; path?: string; error?: string }>
       writeFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>
+      onPttDown: (callback: () => void) => void
+      onPttUp: (callback: () => void) => void
+      injectTextGlobally: (text: string) => Promise<{ success: boolean }>
     }
   }
 }
@@ -34,6 +37,17 @@ window.electronAPI = {
   // File operations
   readFile: (filePath: string) => ipcRenderer.invoke('file:read-file', filePath),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('file:write-file', filePath, content),
+  
+  // Push-to-Talk events
+  onPttDown: (callback: () => void) => {
+    ipcRenderer.on('ptt-down', callback)
+  },
+  onPttUp: (callback: () => void) => {
+    ipcRenderer.on('ptt-up', callback)
+  },
+  
+  // Global text injection
+  injectTextGlobally: (text: string) => ipcRenderer.invoke('ptt:inject-text-globally', text),
 }
 
 window.addEventListener('DOMContentLoaded', () => {

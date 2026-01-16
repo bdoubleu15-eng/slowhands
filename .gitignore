@@ -21,6 +21,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # IDE
+.claude/
+.cursor/
+.roo/
 .vscode/
 .idea/
 *.swp

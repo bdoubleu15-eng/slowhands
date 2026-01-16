@@ -11,9 +11,12 @@ export class UIManager {
     private thinkingIndicator: HTMLElement | null;
     private contextMenu: HTMLElement | null = null;
     private selectedFilePath: string | null = null;
+    private recordingIndicator: HTMLElement | null = null;
 
     private outputLines: string[] = ['Initializing...'];
     private isThinking: boolean = false;
+    private isRecording: boolean = false;
+    private isTranscribing: boolean = false;
 
     constructor(
         private readonly onSendMessage: (msg: string) => void,
@@ -35,6 +38,7 @@ export class UIManager {
 
         this.setupEventListeners();
         this.setupContextMenu();
+        this.setupRecordingIndicator();
         this.updateOutput();
     }
 
@@ -265,6 +269,68 @@ export class UIManager {
                 this.thinkingIndicator.classList.remove('visible');
             }
         }
+    }
+
+    private setupRecordingIndicator() {
+        // Create recording indicator element
+        this.recordingIndicator = document.createElement('div');
+        this.recordingIndicator.className = 'recording-indicator';
+        this.recordingIndicator.innerHTML = `
+            <div class="recording-dot"></div>
+            <span class="recording-text">Recording</span>
+        `;
+
+        // Add to the input area
+        const inputArea = document.querySelector('.agent-input-container');
+        if (inputArea) {
+            inputArea.appendChild(this.recordingIndicator);
+        }
+    }
+
+    public setRecording(recording: boolean) {
+        this.isRecording = recording;
+        if (this.recordingIndicator) {
+            if (recording) {
+                this.recordingIndicator.classList.add('visible');
+                this.recordingIndicator.querySelector('.recording-text')!.textContent = 'Recording';
+            } else {
+                this.recordingIndicator.classList.remove('visible');
+            }
+        }
+    }
+
+    public setTranscribing(transcribing: boolean) {
+        this.isTranscribing = transcribing;
+        if (this.recordingIndicator) {
+            if (transcribing) {
+                this.recordingIndicator.classList.add('visible');
+                this.recordingIndicator.querySelector('.recording-text')!.textContent = 'Transcribing...';
+                this.recordingIndicator.querySelector('.recording-dot')!.classList.add('processing');
+            } else if (!this.isRecording) {
+                this.recordingIndicator.classList.remove('visible');
+                this.recordingIndicator.querySelector('.recording-dot')!.classList.remove('processing');
+            }
+        }
+    }
+
+    public insertIntoInput(text: string) {
+        // Insert transcribed text at cursor position or append to existing
+        const currentValue = this.agentInput.value;
+        const cursorPos = this.agentInput.selectionStart || currentValue.length;
+
+        const before = currentValue.slice(0, cursorPos);
+        const after = currentValue.slice(cursorPos);
+
+        // Add space if needed
+        const needsSpace = before.length > 0 && !before.endsWith(' ') && !text.startsWith(' ');
+        const newValue = before + (needsSpace ? ' ' : '') + text + after;
+
+        this.agentInput.value = newValue;
+        this.agentInput.focus();
+
+        // Set cursor after inserted text
+        const newCursorPos = cursorPos + (needsSpace ? 1 : 0) + text.length;
+        this.agentInput.setSelectionRange(newCursorPos, newCursorPos);
     }
 
     public updateOutput() {

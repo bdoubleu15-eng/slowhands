@@ -547,11 +547,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         config = load_config()
                         workspace_path = Path(config.workspace_path)
                     file_path = workspace_path / parsed_message.path
-                    
+
                     try:
                         # Security check
                         file_path.resolve().relative_to(workspace_path.resolve())
-                        
+
                         if file_path.exists() and file_path.is_file():
                             content = file_path.read_text()
                             await websocket.send_json(
@@ -574,7 +574,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_json(
                             WSErrorMessage(content=f"Error reading file: {e}").model_dump()
                         )
-                    
+
                 else:
                     manager.update_activity(websocket)
                     await websocket.send_json(
