@@ -158,44 +158,12 @@ fi
 
 echo ""
 
-# Step 3: Launch Electron UI
-echo "🖥️  Electron UI"
-echo "----------------"
+# Note: vite-plugin-electron automatically launches the Electron window
+# when `npm run dev` is started, so we don't need to run `npm run start` separately.
+# This was causing TWO Electron windows to open!
 
-cd "$PROJECT_DIR/frontend"
-
-# Wait for vite to build electron files (vite dev builds them automatically)
-echo "⏳ Waiting for Electron files to be ready..."
-for i in {1..10}; do
-    if [ -d "dist-electron" ] && [ -f "dist-electron/main.js" ]; then
-        echo -e "${GREEN}✅ Electron files ready${NC}"
-        break
-    fi
-    if [ $i -eq 10 ]; then
-        echo -e "${YELLOW}⚠️  Electron files not found, but continuing anyway...${NC}"
-        echo "   Vite dev server should build them automatically"
-    fi
-    sleep 1
-done
-
-# Set Vite dev server URL for Electron (if not already set by vite)
-export VITE_DEV_SERVER_URL="$FRONTEND_URL"
-
-# Launch Electron (non-blocking)
-echo "🚀 Launching Electron application..."
-npm run start > /tmp/slowhands-electron.log 2>&1 &
-ELECTRON_PID=$!
-
-# Give Electron a moment to start
-sleep 1
-
-if ps -p $ELECTRON_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Electron UI launched (PID: $ELECTRON_PID)${NC}"
-    echo "   Logs: /tmp/slowhands-electron.log"
-else
-    echo -e "${YELLOW}⚠️  Electron may have exited, check logs: /tmp/slowhands-electron.log${NC}"
-    ELECTRON_PID=""
-fi
+echo -e "${GREEN}✅ Electron UI launching automatically via Vite${NC}"
+echo "   (vite-plugin-electron handles this)"
 echo ""
 
 # Summary
@@ -203,18 +171,15 @@ echo "================================"
 echo -e "${GREEN}🖐️ SlowHands is running!${NC}"
 echo ""
 echo "   Backend:  $BACKEND_URL"
-echo "   Frontend: $FRONTEND_URL"
-echo "   UI:       Electron window"
+echo "   Frontend: $FRONTEND_URL (+ Electron UI)"
 echo ""
 echo "   PIDs:"
 echo "     Backend:  $BACKEND_PID"
-echo "     Frontend: $FRONTEND_PID"
-echo "     Electron: $ELECTRON_PID"
+echo "     Frontend: $FRONTEND_PID (includes Electron)"
 echo ""
 echo "   Logs:"
 echo "     Backend:  /tmp/slowhands-backend.log"
-echo "     Frontend: /tmp/slowhands-frontend.log"
-echo "     Electron: /tmp/slowhands-electron.log"
+echo "     Frontend: /tmp/slowhands-frontend.log (includes Electron)"
 echo ""
 echo "================================"
 echo ""

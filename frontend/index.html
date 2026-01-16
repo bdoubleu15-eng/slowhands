@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.35/dist/codicon.css">
     <!-- Basic Reset -->
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; color: #1e1e1e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; color: #1e1e1e; font-family: 'Segoe UI', system-ui, sans-serif; }
     </style>
     <!-- Critical loading styles -->
     <style>
@@ -45,19 +45,17 @@
             <svg class="hands-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <!-- Center dot -->
                 <circle cx="50" cy="50" r="4" fill="#0078d4"/>
-
-                <!-- Left hand -->
+ 
+                <!-- Left hand palm -->
                 <g class="hand left-hand">
-                    <g transform="translate(4, 24) scale(0.8)">
-                        <path d="M32 4 C28 4, 26 10, 26 16 L26 28 C26 26, 22 24, 18 24 C14 24, 12 28, 12 32 L12 52 C12 58, 18 62, 24 62 L40 62 C46 62, 52 58, 52 52 L52 32 C52 28, 50 24, 46 24 C42 24, 38 26, 38 28 L38 16 C38 10, 36 4, 32 4 Z" fill="#ffffff" stroke="#0078d4" stroke-width="2" stroke-linejoin="round"/>
-                    </g>
+                    <circle cx="20" cy="35" r="18" fill="#ffffff" stroke="#0078d4" stroke-width="3" stroke-linejoin="round"/>
+                    <path d="M15 30 Q20 25 25 30" fill="none" stroke="#0078d4" stroke-width="2" stroke-linecap="round"/>
                 </g>
 
-                <!-- Right hand -->
+                <!-- Right hand palm -->
                 <g class="hand right-hand">
-                    <g transform="translate(96, 24) scale(-0.8, 0.8)">
-                        <path d="M32 4 C28 4, 26 10, 26 16 L26 28 C26 26, 22 24, 18 24 C14 24, 12 28, 12 32 L12 52 C12 58, 18 62, 24 62 L40 62 C46 62, 52 58, 52 52 L52 32 C52 28, 50 24, 46 24 C42 24, 38 26, 38 28 L38 16 C38 10, 36 4, 32 4 Z" fill="#ffffff" stroke="#0078d4" stroke-width="2" stroke-linejoin="round"/>
-                    </g>
+                    <circle cx="80" cy="35" r="18" fill="#ffffff" stroke="#0078d4" stroke-width="3" stroke-linejoin="round"/>
+                    <path d="M75 30 Q80 25 85 30" fill="none" stroke="#0078d4" stroke-width="2" stroke-linecap="round"/>
                 </g>
             </svg>
             <div class="loading-text">SlowHands is waking up...</div>
@@ -67,7 +65,13 @@
         <!-- Title Bar (Draggable) -->
         <div id="title-bar">
             <div class="title-bar-drag">
-                <div class="app-icon"><i class="codicon codicon-zap"></i></div>
+                <div class="app-icon">
+                    <!-- Hand icon SVG -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 11.5a7.5 7.5 0 1 0-15 0 7.5 7.5 0 0 0 15 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M15 11.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" fill="currentColor"/>
+                    </svg>
+                </div>
                 <div class="toolbar">
                     <!-- File Menu -->
                     <div class="menu-container">
@@ -77,10 +81,9 @@
                             <div class="menu-item"><i class="codicon codicon-folder"></i> Open Folder<span class="shortcut">Ctrl+Shift+O</span></div>
                             <div class="menu-item"><i class="codicon codicon-go-to-file"></i> Open File<span class="shortcut">Ctrl+O</span></div>
                             <div class="menu-separator"></div>
-                            <div class="menu-item"><i class="codicon codicon-save"></i> Save<span class="shortcut">Ctrl+S</span></div>
-                            <div class="menu-item"><i class="codicon codicon-save-all"></i> Save All<span class="shortcut">Ctrl+Shift+S</span></div>
-                            <div class="menu-separator"></div>
-                            <div class="menu-item"><i class="codicon codicon-close"></i> Close File</div>
+                                            <div class="menu-item"><i class="codicon codicon-save"></i> Save<span class="shortcut">Ctrl+S</span></div>
+                                            <div class="menu-item"><i class="codicon codicon-save-as"></i> Save As<span class="shortcut">Ctrl+Shift+S</span></div>
+                                            <div class="menu-separator"></div>                            <div class="menu-item"><i class="codicon codicon-close"></i> Close File</div>
                         </div>
                     </div>
                     <!-- Edit Menu -->

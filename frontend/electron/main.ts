@@ -14,7 +14,7 @@ import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'fs'
 // │ └── preload.js
 //
 process.env.DIST = path.join(__dirname, '../dist')
-process.env.PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
+process.env.PUBLIC = path.join(process.env.DIST, '../public')
 
 // Ensure paths are strings to satisfy TS
 const publicDir = process.env.PUBLIC || ''
@@ -58,14 +58,13 @@ function getDefaultDirectory(): string {
     const cwd = process.cwd()
     // Check if we're in a working directory (not just home)
     if (cwd !== process.env.HOME && existsSync(cwd)) {
-      return wslToWindowsPath(cwd)
+      return cwd
     }
-    // Otherwise use WSL home
-    const home = process.env.HOME || '/home/' + process.env.USER
-    return wslToWindowsPath(home)
+    // Otherwise use home
+    return process.env.HOME || '/home/' + process.env.USER
   } catch (error) {
     console.error('Failed to get default directory:', error)
-    return wslToWindowsPath(process.env.HOME || '/home')
+    return process.env.HOME || '/home'
   }
 }
 
@@ -73,11 +72,6 @@ function getPTTHelperPath(): string {
   // Get the project root directory
   const projectRoot = process.cwd()
   const helperPath = path.join(projectRoot, 'tools', 'ptt-helper', 'ptt_helper.py')
-  
-  // Convert to Windows path if running in WSL
-  if (isWSL()) {
-    return wslToWindowsPath(helperPath)
-  }
   
   return helperPath
 }
@@ -175,11 +169,6 @@ function getTextInjectorPath(): string {
   const projectRoot = process.cwd()
   const injectorPath = path.join(projectRoot, 'tools', 'ptt-helper', 'text_injector.py')
   
-  // Convert to Windows path if running in WSL
-  if (isWSL()) {
-    return wslToWindowsPath(injectorPath)
-  }
-  
   return injectorPath
 }
 
@@ -259,6 +248,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
+      webSecurity: false,
     },
     frame: false,  // Frameless for custom title bar
     titleBarStyle: 'hidden',

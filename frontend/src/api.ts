@@ -7,7 +7,68 @@ interface SessionState {
     createdAt: number;
 }
 
-const SESSION_STORAGE_KEY = 'slowhands_session';
+// IndexedDB Utilities
+const DB_NAME = 'slowhands_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'sessions';
+const SESSION_STORAGE_KEY = 'slowhands_session_v1';
+
+class DBManager {
+    private dbPromise: Promise<IDBDatabase> | null = null;
+
+    private open(): Promise<IDBDatabase> {
+        if (this.dbPromise) return this.dbPromise;
+
+        this.dbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => {
+                this.dbPromise = null;
+                reject(request.error);
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                }
+            };
+        });
+        return this.dbPromise;
+    }
+
+    public async get(key: string): Promise<any> {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(key);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result?.value);
+        });
+    }
+
+    public async put(key: string, value: any): Promise<void> {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put({ id: key, value });
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve();
+        });
+    }
+
+    public async delete(key: string): Promise<void> {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(key);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve();
+        });
+    }
+}
 
 export class APIClient {
     private websocket: WebSocket | null = null;
@@ -15,6 +76,9 @@ export class APIClient {
     private reconnectAttempts = 0;
     private readonly MAX_RECONNECT_ATTEMPTS = 5;
     private readonly MAX_QUEUE_SIZE = 50;
+    
+    private db: DBManager;
+    private initPromise: Promise<void> | null = null;
     
     // Ping/Pong tracking
     private lastPingSentAt: number | null = null;
@@ -32,8 +96,9 @@ export class APIClient {
         private readonly onStatusChange: (connected: boolean) => void,
         private readonly onLog: (text: string) => void
     ) {
-        // Load session from storage on init
-        this.loadSession();
+        this.db = new DBManager();
+        // Start loading session immediately
+        this.initPromise = this.loadSession();
     }
 
     public async fetchFiles(): Promise<FileItem[]> {
@@ -85,31 +150,30 @@ export class APIClient {
     // Session Management
     // ============================================
 
-    private loadSession(): void {
+    private async loadSession(): Promise<void> {
         try {
-            const stored = localStorage.getItem(SESSION_STORAGE_KEY);
-            if (stored) {
-                const session = JSON.parse(stored) as SessionState;
+            const session = await this.db.get(SESSION_STORAGE_KEY) as SessionState | undefined;
+            if (session) {
                 // Check if session is expired
                 if (Date.now() - session.createdAt < this.SESSION_EXPIRY_MS) {
                     this.sessionState = session;
                     console.debug('Loaded existing session:', session.sessionId);
                 } else {
                     // Session expired, remove it
-                    localStorage.removeItem(SESSION_STORAGE_KEY);
+                    await this.db.delete(SESSION_STORAGE_KEY);
                     console.debug('Session expired, removed from storage');
                 }
             }
         } catch (e) {
             console.error('Error loading session:', e);
-            localStorage.removeItem(SESSION_STORAGE_KEY);
+            await this.db.delete(SESSION_STORAGE_KEY).catch(() => {});
         }
     }
 
-    private saveSession(): void {
+    private async saveSession(): Promise<void> {
         if (this.sessionState) {
             try {
-                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(this.sessionState));
+                await this.db.put(SESSION_STORAGE_KEY, this.sessionState);
             } catch (e) {
                 console.error('Error saving session:', e);
             }
@@ -119,6 +183,7 @@ export class APIClient {
     private updateLastCorrelationId(correlationId: string): void {
         if (this.sessionState) {
             this.sessionState.lastCorrelationId = correlationId;
+            // Fire and forget save
             this.saveSession();
         }
     }
@@ -131,8 +196,13 @@ export class APIClient {
     // WebSocket Connection
     // ============================================
 
-    public connect(): void {
+    public async connect(): Promise<void> {
         if (this.websocket?.readyState === WebSocket.OPEN) return;
+
+        // Ensure session is loaded before connecting
+        if (this.initPromise) {
+            await this.initPromise;
+        }
 
         this.onLog('Connecting to agent...');
         this.websocket = new WebSocket(this.wsUrl);
@@ -202,7 +272,7 @@ export class APIClient {
         }
     }
 
-    public send(message: WSMessageBase): void {
+    public send(message: WSMessage): void {
         if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
             this.queueMessage(message);
             // Try to connect if not already
@@ -339,9 +409,9 @@ export class APIClient {
         return `fe_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
-    public clearSession(): void {
+    public async clearSession(): Promise<void> {
         this.sessionState = null;
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        await this.db.delete(SESSION_STORAGE_KEY);
         this.onLog('Session cleared.');
     }
 }

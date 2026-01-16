@@ -3,7 +3,6 @@ import { APIClient } from './api';
 import { EditorManager } from './editor';
 import { UIManager } from './ui';
 import { WSMessage } from './types';
-import { AudioCapture } from './audio';
 
 // ============================================
 // Global Error Handlers
@@ -12,11 +11,9 @@ import { AudioCapture } from './audio';
 // Track recent errors to avoid spam
 const recentErrors: string[] = [];
 const MAX_RECENT_ERRORS = 10;
-const ERROR_DEDUP_WINDOW_MS = 5000;
 
 function logError(source: string, message: string, details?: any): void {
     const errorKey = `${source}:${message}`;
-    const now = Date.now();
     
     // Dedup: skip if we've seen this exact error recently
     if (recentErrors.includes(errorKey)) {
@@ -150,14 +147,14 @@ const uiManager = new UIManager(
             // @ts-ignore
             const electronResult = await window.electronAPI?.readFile(filePath);
             if (electronResult?.success) {
-                editorManager.openFile(filePath, electronResult.content || '');
+                await editorManager.openFile(filePath, electronResult.content || '');
                 uiManager.addOutputLine(`[Open] ${filePath}`);
                 return;
             }
             
             // Fallback to API (for workspace files)
             const data = await apiClient.readFile(filePath);
-            editorManager.openFile(filePath, data.content);
+            await editorManager.openFile(filePath, data.content);
             uiManager.addOutputLine(`[Open] ${filePath}`);
         } catch (e) {
             uiManager.addOutputLine(`[Error] Failed to open: ${filePath}`);
@@ -180,6 +177,11 @@ const uiManager = new UIManager(
             console.error('Failed to open folder:', error);
             uiManager.addOutputLine(`[Error] Failed to open folder: ${error.message}`);
         }
+    },
+    // onNewFile
+    () => {
+        editorManager.openFile('Untitled', '');
+        uiManager.addOutputLine('[New] Created new file');
     },
     // onTogglePause
     () => {
@@ -241,80 +243,6 @@ editorManager.onFileChanged = (path) => uiManager.updateFileNameDisplay(path);
 // Hide loading overlay now that UI is ready
 hideLoadingOverlay();
 
-// ============================================
-// Push-to-Talk Audio Capture
-// ============================================
-
-const audioCapture = new AudioCapture({ sampleRate: 16000, channels: 1 });
-
-// Set up audio capture callbacks
-audioCapture.setOnStateChange((isRecording) => {
-    uiManager.setRecording(isRecording);
-    if (isRecording) {
-        uiManager.addOutputLine('[PTT] Recording...');
-    }
-});
-
-audioCapture.setOnAudioData(async (result) => {
-    uiManager.addOutputLine(`[PTT] Captured ${result.duration.toFixed(1)}s of audio, transcribing...`);
-    uiManager.setTranscribing(true);
-
-    // Convert blob to base64
-    const arrayBuffer = await result.blob.arrayBuffer();
-    const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
-
-    // Send to backend for transcription
-    apiClient.send({
-        type: 'transcribe',
-        audio_data: base64,
-        correlation_id: apiClient.generateCorrelationId()
-    });
-});
-
-audioCapture.setOnError((error) => {
-    uiManager.addOutputLine(`[PTT Error] ${error.message}`);
-    uiManager.setRecording(false);
-    uiManager.setTranscribing(false);
-});
-
-// Listen for PTT events from Electron
-// @ts-ignore
-if (window.electronAPI?.onPttDown) {
-    // @ts-ignore
-    window.electronAPI.onPttDown(() => {
-        if (!audioCapture.isRecording()) {
-            audioCapture.startRecording().catch((err) => {
-                uiManager.addOutputLine(`[PTT Error] Failed to start recording: ${err.message}`);
-            });
-        }
-    });
-}
-
-// @ts-ignore
-if (window.electronAPI?.onPttUp) {
-    // @ts-ignore
-    window.electronAPI.onPttUp(() => {
-        if (audioCapture.isRecording()) {
-            audioCapture.stopRecording();
-        }
-    });
-}
-
-// Request microphone permission on startup (non-blocking)
-if (AudioCapture.isSupported()) {
-    audioCapture.requestPermission().then((granted) => {
-        if (granted) {
-            uiManager.addOutputLine('[PTT] Microphone permission granted');
-        } else {
-            uiManager.addOutputLine('[PTT] Microphone permission denied - PTT will not work');
-        }
-    });
-} else {
-    uiManager.addOutputLine('[PTT] Audio recording not supported in this browser');
-}
-
 function handleAgentMessage(data: WSMessage) {
     // Hide thinking indicator when we get any response
     uiManager.setThinking(false);
@@ -336,7 +264,9 @@ function handleAgentMessage(data: WSMessage) {
                         uiManager.updatePauseButton(false, false);
                     });
                 } else {
-                    editorManager.updateFile(path, content);
+                    editorManager.updateFile(path, content).then(() => {
+                        // File updated
+                    });
                 }
             }
             if (data.phase !== 'respond') {
@@ -366,35 +296,6 @@ function handleAgentMessage(data: WSMessage) {
             uiManager.setThinking(false);
             uiManager.addOutputLine('[Server] Server is shutting down...');
             uiManager.updateConnectionStatus(false);
-            break;
-        case 'transcribing':
-            // Show transcription status
-            if (data.status === 'started') {
-                uiManager.setTranscribing(true);
-            }
-            break;
-        case 'transcription_result':
-            uiManager.setTranscribing(false);
-            uiManager.setRecording(false);
-            if (data.text && data.text.trim()) {
-                const transcribedText = data.text.trim();
-                
-                // Insert into SlowHands input
-                uiManager.insertIntoInput(transcribedText);
-                uiManager.addOutputLine(`[PTT] Transcribed: "${transcribedText}"`);
-                
-                // Global text injection (system-wide)
-                // @ts-ignore
-                if (window.electronAPI?.injectTextGlobally) {
-                    // @ts-ignore
-                    window.electronAPI.injectTextGlobally(transcribedText).catch((err: Error) => {
-                        console.error('[PTT] Global injection failed:', err);
-                        uiManager.addOutputLine(`[PTT] Global injection failed: ${err.message}`);
-                    });
-                }
-            } else {
-                uiManager.addOutputLine('[PTT] No speech detected');
-            }
             break;
     }
 }
@@ -432,8 +333,8 @@ agentResizeHandle?.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
     if (isResizing && appContainer) {
-        // Activity bar is 54px wide
-        const newWidth = Math.max(120, Math.min(400, e.clientX - 54));
+        // Activity bar is 48px wide
+        const newWidth = Math.max(120, Math.min(400, e.clientX - 48));
         appContainer.style.setProperty('--sidebar-width', `${newWidth}px`);
         editorManager.layout();
     }

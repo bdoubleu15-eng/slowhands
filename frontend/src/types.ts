@@ -94,24 +94,6 @@ export interface WSServerShutdownMessage extends WSMessageBase {
     content: string;
 }
 
-// Transcription Messages (PTT/Whisper)
-export interface WSTranscribeMessage extends WSMessageBase {
-    type: 'transcribe';
-    audio_data: string;  // Base64-encoded WAV audio
-}
-
-export interface WSTranscriptionResultMessage extends WSMessageBase {
-    type: 'transcription_result';
-    text: string;
-    confidence: number;
-    duration: number;
-}
-
-export interface WSTranscribingMessage extends WSMessageBase {
-    type: 'transcribing';
-    status: 'started' | 'processing';
-}
-
 export type WSMessage =
     | WSChatMessage
     | WSStopMessage
@@ -123,7 +105,4 @@ export type WSMessage =
     | WSCompleteMessage
     | WSErrorMessage
     | WSStoppedMessage
-    | WSServerShutdownMessage
-    | WSTranscribeMessage
-    | WSTranscriptionResultMessage
-    | WSTranscribingMessage;
+    | WSServerShutdownMessage;

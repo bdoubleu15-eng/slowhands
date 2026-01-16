@@ -1,41 +1,20 @@
-import * as monaco from 'monaco-editor'
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+import type * as Monaco from 'monaco-editor'
 import { EditorTab } from './types'
 
-// Configure Monaco Environment
-self.MonacoEnvironment = {
-  getWorker(_, label) {
-    if (label === 'json') {
-      return new jsonWorker()
-    }
-    if (label === 'css' || label === 'scss' || label === 'less') {
-      return new cssWorker()
-    }
-    if (label === 'html' || label === 'handlebars' || label === 'razor') {
-      return new htmlWorker()
-    }
-    if (label === 'typescript' || label === 'javascript') {
-      return new tsWorker()
-    }
-    return new editorWorker()
-  }
-}
-
 interface TabModel {
-    model: monaco.editor.ITextModel;
-    viewState: monaco.editor.ICodeEditorViewState | null;
+    model: Monaco.editor.ITextModel;
+    viewState: Monaco.editor.ICodeEditorViewState | null;
 }
 
 export class EditorManager {
-    private editor: monaco.editor.IStandaloneCodeEditor;
+    private editor: Monaco.editor.IStandaloneCodeEditor | null = null;
+    private monaco: typeof Monaco | null = null;
     private tabs: EditorTab[] = [];
     private tabModels: Map<string, TabModel> = new Map();
     private activeTabId: string | null = null;
     private tabBarElement: HTMLElement | null = null;
+    
+    private initPromise: Promise<void> | null = null;
     
     public readonly MAX_TABS = 5;
     
@@ -51,8 +30,82 @@ export class EditorManager {
     public onFileChanged: (filePath: string) => void = () => {};
     public onTabsChanged: () => void = () => {};
 
-    constructor(container: HTMLElement) {
-        this.editor = monaco.editor.create(container, {
+    constructor(private container: HTMLElement) {
+        this.showPlaceholder();
+    }
+
+    private showPlaceholder() {
+        this.container.innerHTML = `
+            <div class="editor-placeholder">
+                <div class="hands-svg">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    </svg>
+                </div>
+                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">SlowHands Editor</div>
+                <div style="font-size: 12px; opacity: 0.6;">Open a file to start coding</div>
+            </div>
+        `;
+    }
+
+    private ensureInitialized(): Promise<void> {
+        if (!this.initPromise) {
+            this.initPromise = this.init();
+        }
+        return this.initPromise;
+    }
+
+    private async init() {
+        // Show loading indicator
+        this.container.innerHTML = `
+            <div class="editor-placeholder">
+                <div class="spinner" style="margin-bottom: 12px;"></div>
+                <div>Loading Editor...</div>
+            </div>
+        `;
+
+        // Load Monaco and workers in parallel
+        // Using dynamic imports for code splitting
+        const [
+            monaco,
+            editorWorker,
+            jsonWorker,
+            cssWorker,
+            htmlWorker,
+            tsWorker
+        ] = await Promise.all([
+            import('monaco-editor'),
+            import('monaco-editor/esm/vs/editor/editor.worker?worker'),
+            import('monaco-editor/esm/vs/language/json/json.worker?worker'),
+            import('monaco-editor/esm/vs/language/css/css.worker?worker'),
+            import('monaco-editor/esm/vs/language/html/html.worker?worker'),
+            import('monaco-editor/esm/vs/language/typescript/ts.worker?worker')
+        ]);
+
+        this.monaco = monaco;
+
+        // Configure Monaco Environment
+        self.MonacoEnvironment = {
+            getWorker(_, label) {
+                if (label === 'json') {
+                    return new jsonWorker.default()
+                }
+                if (label === 'css' || label === 'scss' || label === 'less') {
+                    return new cssWorker.default()
+                }
+                if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                    return new htmlWorker.default()
+                }
+                if (label === 'typescript' || label === 'javascript') {
+                    return new tsWorker.default()
+                }
+                return new editorWorker.default()
+            }
+        };
+
+        this.container.innerHTML = ''; // Clear loading
+
+        this.editor = monaco.editor.create(this.container, {
             value: [
                 '// Welcome to SlowHands',
                 '// Your AI coding assistant is ready.',
@@ -140,7 +193,10 @@ export class EditorManager {
      * Open a file in a new tab or focus existing tab
      * Returns true if successful, false if tab limit reached and no tabs could be closed
      */
-    public openFile(filePath: string, content: string): boolean {
+    public async openFile(filePath: string, content: string): Promise<boolean> {
+        await this.ensureInitialized();
+        if (!this.editor || !this.monaco) return false;
+
         // Check if file is already open
         const existingTab = this.tabs.find(t => t.path === filePath);
         if (existingTab) {
@@ -179,7 +235,7 @@ export class EditorManager {
         };
 
         // Create Monaco model for this tab
-        const model = monaco.editor.createModel(content, language);
+        const model = this.monaco.editor.createModel(content, language);
         this.tabModels.set(tabId, { model, viewState: null });
 
         this.tabs.push(newTab);
@@ -193,6 +249,8 @@ export class EditorManager {
      * Switch to a tab by ID
      */
     public switchTab(tabId: string): void {
+        if (!this.editor) return;
+
         const tab = this.tabs.find(t => t.id === tabId);
         if (!tab) return;
 
@@ -222,6 +280,8 @@ export class EditorManager {
      * Close a tab by ID
      */
     public closeTab(tabId: string): void {
+        if (!this.editor || !this.monaco) return;
+
         const tabIndex = this.tabs.findIndex(t => t.id === tabId);
         if (tabIndex === -1) return;
 
@@ -244,7 +304,7 @@ export class EditorManager {
             } else {
                 this.activeTabId = null;
                 // Show welcome screen
-                this.editor.setModel(monaco.editor.createModel(
+                this.editor.setModel(this.monaco.editor.createModel(
                     '// Welcome to SlowHands\n// Open a file to get started.',
                     'typescript'
                 ));
@@ -337,8 +397,8 @@ export class EditorManager {
     // Legacy methods for compatibility
     // ========================================
 
-    public updateFile(filePath: string, content: string) {
-        this.openFile(filePath, content);
+    public async updateFile(filePath: string, content: string) {
+        await this.openFile(filePath, content);
     }
 
     public getCurrentFilePath(): string | null {
@@ -347,7 +407,7 @@ export class EditorManager {
     }
 
     public getCurrentContent(): string {
-        return this.editor.getValue();
+        return this.editor?.getValue() || '';
     }
 
     public markCurrentTabClean(): void {
@@ -365,6 +425,9 @@ export class EditorManager {
     // ========================================
 
     public async streamContent(filePath: string, content: string, charsPerSecond: number = 60) {
+        await this.ensureInitialized();
+        if (!this.editor || !this.monaco) return;
+
         // First, open the file as a tab
         const fileName = filePath.split('/').pop() || filePath;
         const language = this.getLanguageFromPath(filePath);
@@ -389,7 +452,7 @@ export class EditorManager {
                 isDirty: false,
             };
 
-            const model = monaco.editor.createModel('', language);
+            const model = this.monaco.editor.createModel('', language);
             this.tabModels.set(tabId, { model, viewState: null });
             this.tabs.push(tab);
         }
@@ -507,6 +570,8 @@ export class EditorManager {
     }
 
     public layout(): void {
-        this.editor.layout();
+        if (this.editor) {
+            this.editor.layout();
+        }
     }
 }
