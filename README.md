@@ -1,6 +1,6 @@
 # SlowHands
 
-An AI coding assistant that shows its work - watch the one agent code in real-time, while the other explains the why's and how's and whatever's of the code to you. I know nothing about coding, so this has been a fun project for me!
+An AI coding assistant that shows its work - watch the one agent code in real-time, while the other explains the why's and how's and whatever's of the code to you. I know nothing about coding, so this has been a fun project for me! AND YES I KNOW I USED AI THE WHOLE TIME TO HELP ME MAKE ALL THIS BUT YOU CAN TELL ME HOW HORIBLE OF A PERSON THAT MAKES ME AGAIN IF YOU WANT!
 
 ## Features
 
